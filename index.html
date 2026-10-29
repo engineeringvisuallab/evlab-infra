@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>EVLab Infra</title>
+<link rel="stylesheet" href="css/main.css">
+<link rel="stylesheet" href="css/layout.css">
+<script type="importmap">
+{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+</script>
+</head>
+<body>
+<header id="toolbar">
+  <div class="brand"><b>EVLab</b> Infra <small>Engineering • Innovation • Learning</small></div>
+  <div class="group">
+    <button data-action="new">New</button><button data-action="open">Open</button><button data-action="save">Save</button>
+    <button data-action="undo" id="btn-undo">Undo</button><button data-action="redo" id="btn-redo">Redo</button>
+    <input type="file" id="file-open" accept=".json,application/json" hidden>
+  </div>
+  <div class="group">
+    <button data-action="tool" data-tool="select" class="on">Select</button><button data-action="tool" data-tool="road">Draw road</button><button data-action="tool" data-tool="pipe">Draw pipe</button>
+  </div>
+  <div class="group">
+    <button data-action="add">Add block</button><button data-action="delete">Delete</button><button data-action="snap" class="on">Snap</button>
+    <button disabled title="Milestone 5">Measure</button><button disabled title="Milestone 5">Import / Export</button>
+  </div>
+  <div class="group">
+    <button data-action="camera" id="btn-camera">Perspective</button>
+    <button data-action="reset">Reset camera</button>
+    <button data-action="fit">Fit to screen</button>
+    <button data-action="grid" class="on">Grid</button>
+    <button data-action="axes" class="on">Axes</button>
+    <button data-action="shadows" class="on">Shadows</button>
+  </div>
+</header>
+<aside id="explorer"><h2>Project explorer</h2><ul id="tree"></ul></aside>
+<main id="viewport"></main>
+<aside id="properties"><h2>Properties</h2></aside>
+<footer id="status">
+  <span id="st-cursor">X — Y —</span><span id="st-tool">Tool: Select / Move</span><span id="st-units">Units: m</span>
+  <span id="st-count">Objects: 0</span><span id="st-crs">CRS: Local engineering (Z-up)</span><span id="st-save"></span><span id="st-valid">Validation: nothing to validate</span>
+</footer>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,35 @@
+// Run (optional): node tests/unit-test.mjs
+import assert from 'node:assert/strict';
+import { EventBus } from '../js/core/event-bus.js';
+import { Project } from '../js/core/project.js';
+import { History } from '../js/core/history.js';
+import { serialize, parse } from '../js/core/project-serializer.js';
+import { createBlock } from '../js/models/block.js';
+import { checkValue, N } from '../js/models/schema.js';
+import { createRoad, chainage, roadStats, fmtStation } from '../js/models/road.js';
+import { createNode, createPipe, pipeLength } from '../js/models/pipe.js';
+import { collectWarnings } from '../js/models/registry.js';
+const bus = new EventBus(), p = new Project(bus), h = new History(p, bus);
+h.record(); p.add(createBlock(p.newId(), 1, 2)); assert.equal(p.objects.length, 1);
+h.record(); p.update('OBJ-0001', { x: 5 });
+h.undo(); assert.equal(p.get('OBJ-0001').x, 1); h.redo(); assert.equal(p.get('OBJ-0001').x, 5);
+h.undo(); h.undo(); assert.equal(p.objects.length, 0);
+h.redo(); h.redo();
+const back = parse(serialize(p)); assert.equal(back.objects[0].x, 5); assert.equal(back.nextId, 2);
+assert.throws(() => parse('{bad'), /not valid JSON/);
+assert.throws(() => parse('{"format":"x"}'), /not an EVLab/);
+assert.throws(() => parse(JSON.stringify({ format: 'evlab-infra-project', schema: 1, objects: [{ type: 'bridge' }] })), /unsupported type/);
+const bad = JSON.parse(serialize(p)); bad.objects[0].width = -1;
+assert.throws(() => parse(JSON.stringify(bad)), /Width/);
+assert.ok(checkValue(N('x', 'X', -1, 1), NaN)); assert.equal(checkValue(N('x', 'X', -1, 1), 0.5), null);
+// Roads and pipes
+const rd = createRoad('R', [{ x: 0, y: 0, z: 0 }, { x: 30, y: 40, z: 10 }]);
+assert.deepEqual(chainage(rd.points), [0, 50]); assert.equal(Math.round(roadStats(rd.points).maxGradePct), 20);
+assert.equal(roadStats(rd.points).len3d.toFixed(3), Math.hypot(50, 10).toFixed(3)); assert.equal(fmtStation(1234.4), '1+234');
+const q = new Project(bus); q.add(rd); const a = q.add(createNode('OBJ-0001', 'Junction', 0, 0)), b = q.add(createNode('OBJ-0002', 'Valve', 30, 40));
+a.invert = 0; b.invert = 0; const pp = q.add(createPipe('OBJ-0003', a.id, b.id)); q.nextId = 4;
+assert.equal(pipeLength(pp, q).len3d, 50); assert.ok(collectWarnings(q).some(w => /material unspecified/.test(w.msg)));
+const rt = parse(serialize(q)); assert.equal(rt.objects.length, 4);
+const broken = JSON.parse(serialize(q)); broken.objects.splice(1, 1); assert.throws(() => parse(JSON.stringify(broken)), /missing node/);
+q.remove(a.id); assert.equal(q.objects.some(o => o.type === 'pipe'), false);
+console.log('All unit tests passed');

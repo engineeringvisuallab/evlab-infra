@@ -1,0 +1,13 @@
+body{display:grid;grid-template-columns:230px 1fr 270px;grid-template-rows:auto 1fr 26px;grid-template-areas:"tb tb tb" "ex vp pr" "st st st"}
+#toolbar{grid-area:tb;display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
+#toolbar .group{display:flex;gap:4px}
+.brand{font-size:15px}.brand b{color:var(--em)}.brand small{color:var(--gold);margin-left:8px;font-size:10px}
+#explorer{grid-area:ex;border-right:1px solid var(--line)}
+#properties{grid-area:pr;border-left:1px solid var(--line)}
+#explorer,#properties{background:var(--panel);padding:10px;overflow:auto}
+#viewport{grid-area:vp;position:relative;overflow:hidden;min-width:0;min-height:0}
+#viewport canvas{display:block}
+#status{grid-area:st;display:flex;gap:20px;align-items:center;padding:0 10px;background:var(--panel);border-top:1px solid var(--line);color:var(--muted);font-size:12px}
+#tree{list-style:none;margin:0;padding:0}
+#tree li{display:flex;align-items:center;gap:6px;padding:3px 0}
+#tree .n{margin-left:auto;color:var(--muted)}
