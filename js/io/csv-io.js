@@ -23,7 +23,8 @@ export function inventoryRows(project) {
   const r3 = v => v == null || v === '' ? '' : +Number(v).toFixed(3), rows = [HEADERS];
   for (const o of project.objects) {
     let x = '', y = '', z = '', len = '', w = '', d = '', sub = '';
-    if (o.points) { ({ x, y, z } = o.points[0]); len = roadStats(o.points).plan; w = o.width; }
+    if (o.type === 'terrain') sub = o.points.length + ' points';
+    else if (o.points) { ({ x, y, z } = o.points[0]); len = roadStats(o.points).plan; w = o.width; }
     else if (o.type === 'pipe') { const a = project.get(o.fromId), L = pipeLength(o, project); if (a) { x = a.x; y = a.y; z = nodeZ(a); } len = L ? L.len3d : ''; d = o.diameter; }
     else if (o.type === 'node') { x = o.x; y = o.y; z = o.invert ?? o.groundLevel ?? ''; sub = o.nodeType; }
     else { x = o.x; y = o.y; z = o.z; len = o.length; w = o.type === 'culvert' ? o.barrels * o.barrelWidth + (o.barrels + 1) * o.wallThickness : o.width; }

@@ -8,7 +8,7 @@
 
 ## Extending later (not implemented)
 - **Projected CRS:** replace `toGeo/fromGeo` with a proj4-style transform keyed by an EPSG code stored in `meta.crs`. Keep the local origin so Three.js coordinates stay small and precise.
-- **Terrain:** add a `terrain` object type whose mesh is built from a DEM grid. The `Terrain` layer already exists.
+- **Terrain:** implemented as a TIN from imported x, y, z points (`js/models/terrain.js`, `js/io/terrain-csv.js`). Future: DEM raster (GeoTIFF) import, breaklines, contours, cut/fill.
 - **Imagery and 3D Tiles:** add optional loaders as separate modules, off by default, with clear attribution.
 - **Online services are optional.** The core app works offline.
 

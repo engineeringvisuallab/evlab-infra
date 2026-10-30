@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { fmt } from '../core/units.js';
 import { onClick, snapper } from './tool-utils.js';
 // Click two points (object surface, else ground plane). Reports 3D, horizontal and vertical distance.
 export function initMeasureTool({ sm, state, bus, setTool }) {
@@ -11,7 +12,7 @@ export function initMeasureTool({ sm, state, bus, setTool }) {
     if (pts.length === 2) {
       grp.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: 0xd4a64a, depthTest: false })));
       const d = pts[0].distanceTo(pts[1]), c = document.createElement('canvas'); c.width = 160; c.height = 40; const x = c.getContext('2d');
-      x.font = 'bold 26px sans-serif'; x.fillStyle = '#facc15'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(d.toFixed(2) + ' m', 80, 20);
+      x.font = 'bold 26px sans-serif'; x.fillStyle = '#facc15'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(fmt(d, state.units, 2), 80, 20);
       const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true })), k = Math.max(d * 0.12, 1.5);
       sp.position.copy(pts[0]).add(pts[1]).multiplyScalar(0.5); sp.scale.set(k * 4, k, 1); grp.add(sp);
     }
@@ -21,7 +22,7 @@ export function initMeasureTool({ sm, state, bus, setTool }) {
   onClick(dom, e => {
     if (state.tool !== 'measure') return; const p = point(e); if (!p) return;
     if (pts.length === 2) reset(); pts.push(p); draw();
-    if (pts.length === 2) { const [a, b] = pts; bus.emit('measure', `Distance ${a.distanceTo(b).toFixed(3)} m · horizontal ${Math.hypot(b.x - a.x, b.y - a.y).toFixed(3)} m · vertical ${(b.z - a.z).toFixed(3)} m`); }
+    if (pts.length === 2) { const [a, b] = pts; bus.emit('measure', `Distance ${fmt(a.distanceTo(b), state.units)} · horizontal ${fmt(Math.hypot(b.x - a.x, b.y - a.y), state.units)} · vertical ${fmt(b.z - a.z, state.units)}`); }
   });
   addEventListener('keydown', e => { if (state.tool === 'measure' && e.key === 'Escape') { reset(); setTool('select'); } });
   bus.on('tool', t => { if (t !== 'measure') reset(); });

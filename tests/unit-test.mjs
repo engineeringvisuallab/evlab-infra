@@ -83,4 +83,60 @@ const badGeo = JSON.parse(serialize(gp)); badGeo.meta.geo.originLat = 123; asser
 const wp = new Project(bus); wp.add(createNode('OBJ-0001', 'Junction', 0, 0)); const w2 = wp.add(createNode('OBJ-0002', 'Junction', 5, 5)); w2.assetId = 'A'; wp.get('OBJ-0001').assetId = 'A';
 wp.add(createRoad('OBJ-0003', [{ x: 0, y: 0, z: 0 }, { x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 5 }]));
 const msgs = collectWarnings(wp).map(x => x.msg).join('|'); assert.ok(/no connected pipes/.test(msgs) && /used by 2 objects/.test(msgs) && /duplicate consecutive/.test(msgs) && /exceeds 12%/.test(msgs));
+// Terrain and road point insertion
+import { createTerrain, terrainMesh, elevationAt, validate as vTerrain } from '../js/models/terrain.js';
+import { insertPoint } from '../js/models/road.js';
+import { parseTerrainCsv } from '../js/io/terrain-csv.js';
+import { toDxf as dxf2 } from '../js/io/dxf-export.js';
+const gridPts = []; for (let i = 0; i <= 4; i++) for (let j = 0; j <= 4; j++) gridPts.push({ x: i * 10, y: j * 10, z: 5 + 0.1 * i * 10 + 0.02 * j * 10 });
+const tg = createTerrain('OBJ-0100', gridPts); assert.equal(vTerrain(tg).length, 0); assert.equal(terrainMesh(tg).stats.triangles, 32); assert.ok(Math.abs(terrainMesh(tg).stats.area - 1600) < 1e-6);
+assert.ok(Math.abs(elevationAt(tg, 13.3, 27.7) - (5 + 0.1 * 13.3 + 0.02 * 27.7)) < 1e-9); assert.equal(elevationAt(tg, 50, 5), null);
+let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+const rp = Array.from({ length: 400 }, () => ({ x: rnd() * 1000, y: rnd() * 500, z: rnd() * 20 }));
+const hull = pts => { const P = [...pts].sort((a, b) => a.x - b.x || a.y - b.y), cr = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x), lo = [], up = [];
+  for (const p of P) { while (lo.length > 1 && cr(lo.at(-2), lo.at(-1), p) <= 0) lo.pop(); lo.push(p); } for (const p of [...P].reverse()) { while (up.length > 1 && cr(up.at(-2), up.at(-1), p) <= 0) up.pop(); up.push(p); } return [...lo.slice(0, -1), ...up.slice(0, -1)]; };
+const hp = hull(rp); let ha = 0; for (let i = 0; i < hp.length; i++) { const a = hp[i], b = hp[(i + 1) % hp.length]; ha += a.x * b.y - b.x * a.y; } ha = Math.abs(ha) / 2;
+const rt3 = terrainMesh(createTerrain('R', rp)); assert.ok(Math.abs(rt3.stats.area - ha) / ha < 1e-6, `hull coverage ${rt3.stats.area} vs ${ha}`);
+assert.equal(terrainMesh(createTerrain('D', [...gridPts, { x: 0, y: 0, z: 9 }])).dupes, 1);
+assert.ok(vTerrain(createTerrain('C', [{ x: 0, y: 0, z: 0 }, { x: 1, y: 1, z: 0 }, { x: 2, y: 2, z: 0 }])).length > 0);
+const tr = parseTerrainCsv('x,y,z\n0,0,1\n10,0,2\n0,10,3\n10,10,4\nbad,1,2\n5,5,\n', { mode: 'local' }); assert.equal(tr.points.length, 4); assert.equal(tr.skipped.length, 2);
+assert.equal(parseTerrainCsv('0,0,1\n1,0,2\n0,1,3', { mode: 'local' }).points.length, 3);
+assert.throws(() => parseTerrainCsv('a,b,c\n1,2,3', { mode: 'local' }), /x, y and z/); assert.throws(() => parseTerrainCsv('x,y,z\n0,0,1\n1,1,1', { mode: 'local' }), /at least 3/);
+const tgeo = parseTerrainCsv('lon,lat,z\n90.4,23.8,1\n90.401,23.8,2\n90.4,23.801,3', { mode: 'geographic', origin: { lon: 90.4, lat: 23.8 } }); assert.ok(Math.abs(tgeo.points[1].x - 102) < 3 && Math.abs(tgeo.points[2].y - 111) < 3);
+const ip = insertPoint([{ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 10 }], 4, 2); assert.equal(ip.index, 1); assert.deepEqual(ip.points[1], { x: 4, y: 0, z: 4 }); assert.equal(insertPoint([{ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 10 }], -5, 0), null);
+const tp = new Project(bus); tp.add(tg); tp.nextId = 101; tp.add(createRoad('OBJ-0101', [{ x: 0, y: 0, z: 0 }, { x: 20, y: 0, z: 0 }])); tp.nextId = 102;
+assert.equal(parse(serialize(tp)).objects.length, 2); assert.ok(quantities(tp).sections.some(s => s.title === 'Terrain (TIN)'));
+assert.equal(toGeoJSON(tp, { mode: 'local' }).geojson.features[0].geometry.type, 'MultiPoint'); assert.ok(dxf2(tp).counts.TERRAIN_TIN > 0);
+assert.equal(inventoryRows(tp)[1][2], '25 points');
+const badT = JSON.parse(serialize(tp)); badT.objects[0].points = badT.objects[0].points.slice(0, 2); assert.throws(() => parse(JSON.stringify(badT)), /at least 3/);
+// Horizontal curves and cross-sections
+import { alignment } from '../js/models/alignment.js';
+import { atStation, groundProfile, crossSection } from '../js/models/sections.js';
+const corner = r => [{ x: 0, y: 0, z: 0 }, { x: 100, y: 0, z: 10, r }, { x: 100, y: 100, z: 20 }];
+const al = alignment(corner(20)); assert.equal(al.curves.length, 1); assert.ok(Math.abs(al.curves[0].tangent - 20) < 1e-9); assert.ok(Math.abs(al.curves[0].length - 20 * Math.PI / 2) < 1e-9);
+assert.ok(Math.abs(chainage(al.pts).at(-1) - (160 + 20 * Math.PI / 2)) / 191 < 5e-4); assert.ok(Math.abs(al.pts.at(-1).x - 100) < 1e-9);
+assert.ok(al.pts.every(p => p.x >= -1e-9 && p.x <= 100 + 1e-9 && p.y >= -1e-9)); // arc stays inside the corner
+const arcPts = al.pts.filter(p => p.x >= 80 - 1e-9 && p.y <= 20 + 1e-9); assert.ok(arcPts.length > 10 && arcPts.every(p => Math.abs(Math.hypot(p.x - 80, p.y - 20) - 20) < 1e-9)); // every arc point lies on the circle
+const big = alignment(corner(200)); assert.equal(big.curves[0].clamped, true); assert.ok(Math.abs(big.curves[0].radius - 100) < 1e-6);
+assert.equal(alignment(corner(0)).curves.length, 0); assert.equal(alignment([{ x: 0, y: 0, z: 0 }, { x: 10, y: 0, z: 0 }]).pts.length, 2);
+const lr = alignment([{ x: 0, y: 0, z: 0 }, { x: 100, y: 0, z: 0, r: 30 }, { x: 100, y: -100, z: 0 }]); assert.ok(lr.pts.some(p => p.y < -1 && p.x < 100 && p.x > 70)); // right turn curves the other way
+assert.equal(roadStats(corner(20)).plan.toFixed(1), (160 + 20 * Math.PI / 2).toFixed(1));
+const cp = new Project(bus); cp.add(createRoad('OBJ-0001', corner(20)));
+assert.equal(parse(serialize(cp)).objects[0].points[1].r, 20); assert.equal(toGeoJSON(cp, { mode: 'local' }).geojson.features[0].properties.curveRadii[1], 20);
+const gb = fromGeoJSON(JSON.stringify(toGeoJSON(cp, { mode: 'local' }).geojson), { mode: 'local', lineAs: 'road', newId: () => 'G1' }); assert.equal(gb.objects[0].points[1].r, 20);
+const badR = JSON.parse(serialize(cp)); badR.objects[0].points[1].r = 0.2; assert.throws(() => parse(JSON.stringify(badR)), /radius/);
+cp.get('OBJ-0001').points[1].r = 500; assert.ok(collectWarnings(cp).some(w => /radius reduced/.test(w.msg)));
+const sl = [{ x: 0, y: 0, z: 0 }, { x: 100, y: 0, z: 10 }], st = atStation(sl, 50); assert.ok(Math.abs(st.z - 5) < 1e-9 && Math.abs(st.x - 50) < 1e-9);
+const terr = createTerrain('T', [{ x: -50, y: -50, z: 3 }, { x: 150, y: -50, z: 3 }, { x: 150, y: 50, z: 3 }, { x: -50, y: 50, z: 3 }]);
+const gp2 = groundProfile(sl, [terr]); assert.ok(gp2.every(g => g.z === 3));
+const xs = crossSection(sl, { width: 7, thickness: 0.3 }, 50, [terr]); assert.equal(xs.groundCL, 3); assert.equal(xs.ground.length, 41); assert.ok(crossSection(sl, { width: 7, thickness: 0.3 }, 50, []).groundCL === null);
+// Display units
+import { toDisplay, fromDisplay } from '../js/core/units.js';
+assert.ok(Math.abs(toDisplay('len', 10, 'ft') - 32.8084) < 1e-4 && Math.abs(toDisplay('dia', 300, 'ft') - 11.811) < 1e-3 && Math.abs(toDisplay('area', 1, 'ft') - 10.7639) < 1e-4 && Math.abs(toDisplay('vol', 1, 'ft') - 35.3147) < 1e-4);
+assert.ok(Math.abs(fromDisplay('len', toDisplay('len', 12.3456, 'ft'), 'ft') - 12.3456) < 1e-12); assert.equal(toDisplay('len', 7, 'm'), 7);
+const up = new Project(bus); up.meta.units = 'ft'; up.add(createRoad('OBJ-0001', [{ x: 0, y: 0, z: 0 }, { x: 30.48, y: 0, z: 0 }]));
+const uq = quantities(up).sections[0]; assert.ok(/ft/.test(uq.headers[3]) && /ft²/.test(uq.headers[7])); assert.equal(uq.rows[0][3], 100); assert.ok(quantities(up).assumptions.at(-1).includes('ft³'));
+assert.equal(parse(serialize(up)).meta.units, 'ft'); const badU = JSON.parse(serialize(up)); badU.meta.units = 'yd'; assert.throws(() => parse(JSON.stringify(badU)), /units/i);
+const tk = parseTerrainCsv('x,y,z\n0,0,10\n100,0,20\n0,100,30', { mode: 'local', k: 0.3048 }); assert.ok(Math.abs(tk.points[1].x - 30.48) < 1e-9 && Math.abs(tk.points[2].z - 9.144) < 1e-9);
+assert.ok(projectReportHtml(up).includes('Feet'));
 console.log('All unit tests passed');

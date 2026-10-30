@@ -1,4 +1,4 @@
-body{--ex:230px;--pr:270px;--st:26px;display:grid;grid-template-columns:var(--ex) 1fr var(--pr);grid-template-rows:auto 1fr var(--st);grid-template-areas:"tb tb tb" "ex vp pr" "st st st"}
+body{--ex:230px;--pr:310px;--st:26px;display:grid;grid-template-columns:var(--ex) 1fr var(--pr);grid-template-rows:auto 1fr var(--st);grid-template-areas:"tb tb tb" "ex vp pr" "st st st"}
 #toolbar{grid-area:tb;display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
 #toolbar .group{display:flex;gap:4px}
 .brand{font-size:15px}.brand b{color:var(--em)}.brand small{color:var(--gold);margin-left:8px;font-size:10px}

@@ -21,7 +21,11 @@ import { initStatusBar } from './ui/status-bar.js';
 
 const bus = new EventBus(), state = { units: 'm', snap: true, gridSize: 1, tool: 'select' };
 const project = new Project(bus), history = new History(project, bus), selection = new Selection(bus);
+Object.defineProperty(state, 'units', { get: () => (project.meta.units === 'ft' ? 'ft' : 'm'), enumerable: true });
+Object.defineProperty(state, 'gridSize', { get: () => (state.units === 'ft' ? 0.3048 : 1), enumerable: true }); // snap step in metres
 const sm = new SceneManager(document.getElementById('viewport'), bus);
+let gridUnits = 'm';
+bus.on('model-changed', () => { if (gridUnits !== state.units) { gridUnits = state.units; sm.setGrid(state.units === 'ft' ? 182.88 : 200, state.units === 'ft' ? 600 : 200); bus.emit('snap'); } });
 const setTool = t => { state.tool = t; bus.emit('tool', t); };
 const ctx = { bus, state, project, history, selection, sm, setTool };
 initObjectSync(ctx); initPicking(ctx); initMeasureTool(ctx); initDrawRoadTool(ctx); initDrawRoadTool(ctx, 'watercourse', createWatercourse); initDrawPipeTool(ctx); initToolbar(ctx);

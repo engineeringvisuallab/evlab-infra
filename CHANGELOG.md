@@ -1,4 +1,7 @@
 # Changelog
+- **0.11.0** Display units: metres or feet (inches for pipe diameter) for editing, readouts, reports and terrain CSV import; grid and snap follow the unit.
+- **0.10.0** Horizontal curves on roads and watercourses (radius per interior point), cross-section view, terrain ground line on the profile.
+- **0.9.0** Terrain (TIN from x, y, z CSV points) with elevation readout, set road elevations and node ground levels from terrain. Double-click a road to insert a control point.
 - **0.8.0** Drag road and watercourse control points with handles in 3D (X, Y; elevation stays in the table).
 - **0.7.0** Show/hide panels (explorer, properties, status bar, toolbar, full view), remembered per browser. Deployment guide, first public release.
 - **0.6.0** Offline Three.js, geographic origin, validation panel, docs, browser smoke test.

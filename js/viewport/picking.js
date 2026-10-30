@@ -1,5 +1,6 @@
 // Select tool: click selects any object; drag moves blocks, nodes and roads on the ground plane (pipes follow their nodes).
 // Drag a gold handle of a selected road or watercourse to move one control point in plan (X, Y); edit elevation (Z) in the Properties table.
+import { insertPoint } from '../models/road.js';
 export function initPicking({ sm, project, selection, history, state }) {
   const dom = sm.renderer.domElement; let drag = null, down = null;
   const snap = v => state.snap ? Math.round(v / state.gridSize) * state.gridSize : v;
@@ -15,7 +16,7 @@ export function initPicking({ sm, project, selection, history, state }) {
     if (hit) {
       const id = hit.object.userData.id; selection.set(id);
       const o = project.get(id), p = sm.groundPoint(e);
-      if (p && o.type !== 'pipe') { const a = anchor(o); drag = { id, dx: a.x - p.x, dy: a.y - p.y, moved: false }; sm.cam.controls.enabled = false; }
+      if (p && o.type !== 'pipe' && o.type !== 'terrain') { const a = anchor(o); drag = { id, dx: a.x - p.x, dy: a.y - p.y, moved: false }; sm.cam.controls.enabled = false; }
     } else down = { x: e.clientX, y: e.clientY };
   }, true);
   window.addEventListener('pointermove', e => {
@@ -32,6 +33,11 @@ export function initPicking({ sm, project, selection, history, state }) {
     if (x === a.x && y === a.y) return;
     if (!drag.moved) { history.record(); drag.moved = true; }
     project.update(drag.id, o.points ? { points: o.points.map(q => ({ ...q, x: +(q.x + x - a.x).toFixed(3), y: +(q.y + y - a.y).toFixed(3) })) } : { x, y });
+  });
+  dom.addEventListener('dblclick', e => { // double-click a selected road or watercourse to insert a control point on that segment
+    if (state.tool !== 'select') return; const hit = sm.pick(e); if (!hit || hit.object.userData.handle !== undefined) return;
+    const o = project.get(hit.object.userData.id); if (!o || !o.points || o.type === 'terrain' || o.id !== selection.id) return;
+    const r = insertPoint(o.points, hit.point.x, hit.point.y); if (!r) return; history.record(); project.update(o.id, { points: r.points });
   });
   window.addEventListener('pointerup', e => {
     if (drag) { drag = null; sm.cam.controls.enabled = true; }

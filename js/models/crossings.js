@@ -1,5 +1,7 @@
 // Plan-view crossing finder. Results are POTENTIAL interactions to verify, never confirmed clashes.
 import { nodeZ } from './pipe.js';
+import { alignment } from './alignment.js';
+const dense = o => ({ ...o, points: alignment(o.points).pts });
 export const CHECKLIST = [
   ['survey', 'Watercourse and ground survey data obtained and checked'], ['utility', 'Utility owners consulted about crossing arrangements'],
   ['clearance', 'Clearance requirements confirmed with the relevant authority'], ['hydraulic', 'Hydraulic capacity and flood levels assessed by a qualified engineer'],
@@ -12,7 +14,7 @@ function segInt(p1, p2, p3, p4) {
 }
 export function findCrossings(project) {
   const out = [], min = project.meta.crossing ? project.meta.crossing.minClearance : null, all = project.objects, of = t => all.filter(o => o.type === t);
-  const lines = [...of('road'), ...of('watercourse')], structs = [...of('bridge'), ...of('culvert')];
+  const lines = [...of('road'), ...of('watercourse')].map(dense), structs = [...of('bridge'), ...of('culvert')];
   for (const p of of('pipe')) {
     const a = project.get(p.fromId), b = project.get(p.toId); if (!a || !b) continue;
     const incomplete = [a, b].some(n => n.invert == null && n.groundLevel == null);
@@ -28,7 +30,7 @@ export function findCrossings(project) {
       out.push({ kind: o.type === 'road' ? 'pipe × road' : 'pipe × watercourse', a: p.id, b: o.id, x: a.x + (b.x - a.x) * h.t, y: a.y + (b.y - a.y) * h.t, gap: incomplete ? null : gap, status });
     }
   }
-  for (const r of of('road')) for (const w of of('watercourse'))
+  for (const r of of('road').map(dense)) for (const w of of('watercourse').map(dense))
     for (let i = 0; i < r.points.length - 1; i++) for (let j = 0; j < w.points.length - 1; j++) {
       const h = segInt(r.points[i], r.points[i + 1], w.points[j], w.points[j + 1]); if (!h) continue;
       const x = r.points[i].x + (r.points[i + 1].x - r.points[i].x) * h.t, y = r.points[i].y + (r.points[i + 1].y - r.points[i].y) * h.t;

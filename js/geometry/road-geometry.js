@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { alignment } from '../models/alignment.js';
 import { chainage, fmtStation } from '../models/road.js';
 import { CONFIG } from '../config.js';
 const line = (pts, mat) => new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(...p))), mat);
@@ -8,7 +9,7 @@ function label(text) {
   return new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
 }
 export function buildRoad(o, sel, stations = true) {
-  const g = new THREE.Group(), P = o.points, n = P.length, hw = o.width / 2, t = o.thickness;
+  const g = new THREE.Group(), C = o.points, P = alignment(C).pts, n = P.length, hw = o.width / 2, t = o.thickness;
   const tan = P.map((p, i) => { const a = P[Math.max(i - 1, 0)], b = P[Math.min(i + 1, n - 1)], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; });
   const v = [], left = [], right = [];
   P.forEach((p, i) => { const nx = -tan[i][1] * hw, ny = tan[i][0] * hw;
@@ -24,7 +25,7 @@ export function buildRoad(o, sel, stations = true) {
   g.add(line(left, edge), line(right, edge));
   if (sel) { // draggable control-point handles (Select tool)
     const r = Math.max(hw * 0.3, 0.5);
-    P.forEach((p, i) => { const h = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), new THREE.MeshBasicMaterial({ color: 0xd4a64a, depthTest: false }));
+    C.forEach((p, i) => { const h = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), new THREE.MeshBasicMaterial({ color: 0xd4a64a, depthTest: false }));
       h.position.set(p.x, p.y, p.z + 0.3); h.renderOrder = 10; h.userData.id = o.id; h.userData.handle = i; g.add(h); });
   }
   const cl = line(P.map(p => [p.x, p.y, p.z + 0.04]), new THREE.LineDashedMaterial({ color: 0xd4a64a, dashSize: 1, gapSize: 0.5 })); cl.computeLineDistances(); g.add(cl);

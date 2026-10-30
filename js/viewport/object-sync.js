@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { buildRoad } from '../geometry/road-geometry.js';
 import { buildNode, buildPipe } from '../geometry/pipe-geometry.js';
+import { buildTerrain } from '../geometry/terrain-geometry.js';
 import { buildBridge, buildCulvert } from '../geometry/structure-geometry.js';
 function buildBlock(o, sel) {
   const m = new THREE.Mesh(new THREE.BoxGeometry(o.width, o.length, o.height), new THREE.MeshStandardMaterial({ color: o.color, roughness: 0.7 }));
@@ -9,9 +10,9 @@ function buildBlock(o, sel) {
   return m;
 }
 const BUILD = { block: buildBlock, road: buildRoad, node: buildNode, pipe: (o, s, p) => buildPipe(o, p, s), bridge: buildBridge, culvert: buildCulvert,
-  watercourse: (o, s) => buildRoad({ ...o, thickness: 0.2 }, s, false) };
+  terrain: buildTerrain, watercourse: (o, s) => buildRoad({ ...o, thickness: 0.2 }, s, false) };
 export function initObjectSync({ sm, project, selection, bus }) {
-  const names = ['project', 'roads', 'watercourses', 'pipelines', 'junctions', 'bridges', 'culverts'];
+  const names = ['terrain', 'project', 'roads', 'watercourses', 'pipelines', 'junctions', 'bridges', 'culverts'];
   const dispose = c => c.traverse(x => { x.geometry?.dispose(); const m = x.material; if (m) { m.map?.dispose(); m.dispose(); } });
   function sync() {
     for (const n of names) for (const c of [...sm.layers[n].children]) { dispose(c); sm.layers[n].remove(c); }

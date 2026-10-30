@@ -12,11 +12,13 @@ export function toGeoJSON(project, { mode, origin }) {
   const features = [], skipped = [];
   for (const o of project.objects) {
     let g;
-    if (o.points) g = { type: 'LineString', coordinates: o.points.map(p => c(p.x, p.y, p.z)) };
+    if (o.type === 'terrain') g = { type: 'MultiPoint', coordinates: o.points.map(p => c(p.x, p.y, p.z)) };
+    else if (o.points) g = { type: 'LineString', coordinates: o.points.map(p => c(p.x, p.y, p.z)) };
     else if (o.type === 'pipe') { const a = project.get(o.fromId), b = project.get(o.toId); if (!a || !b) { skipped.push(`${o.id}: connected node missing`); continue; }
       g = { type: 'LineString', coordinates: [a, b].map(n => c(n.x, n.y, n.invert ?? n.groundLevel ?? null)) }; }
     else g = { type: 'Point', coordinates: c(o.x, o.y, o.type === 'node' ? (o.invert ?? o.groundLevel ?? null) : o.z) };
     const properties = Object.fromEntries(Object.entries(o).filter(([k, v]) => k !== 'points' && k !== 'x' && k !== 'y' && (v === null || typeof v !== 'object')));
+    if (o.points && o.type !== 'terrain' && o.points.some(p => p.r > 0)) properties.curveRadii = o.points.map(p => p.r ?? null); // curve radii travel with the control points
     features.push({ type: 'Feature', geometry: g, properties });
   }
   const geojson = { type: 'FeatureCollection', ...(mode === 'local' ? { crs: { type: 'name', properties: { name: 'LOCAL-ENG' } } } : {}),
@@ -43,7 +45,10 @@ export function fromGeoJSON(text, { mode, origin, lineAs, newId }) {
     try {
       let o;
       if (g.type === 'Point') { const p = conv(g.coordinates); o = createNode(newId(), 'Junction', p.x, p.y); if (g.coordinates.length > 2) o.groundLevel = p.z; }
-      else if (g.type === 'LineString') o = (lineAs === 'watercourse' ? createWatercourse : createRoad)(newId(), g.coordinates.map(conv));
+      else if (g.type === 'LineString') {
+        o = (lineAs === 'watercourse' ? createWatercourse : createRoad)(newId(), g.coordinates.map(conv));
+        const cr = f.properties && f.properties.curveRadii; if (Array.isArray(cr) && cr.length === o.points.length) cr.forEach((r, k) => { if (Number.isFinite(r) && r > 0) o.points[k].r = r; });
+      }
       else { skipped.push(`${tag}: geometry type ${g.type} is not supported`); return; }
       const nm = f.properties && f.properties.name; if (typeof nm === 'string' && nm.trim()) o.name = nm.trim();
       const errs = validateObject(o); if (errs.length) throw new Error(errs[0]); objects.push(o);

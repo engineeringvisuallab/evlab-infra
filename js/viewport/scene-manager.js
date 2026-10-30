@@ -23,7 +23,7 @@ export class SceneManager {
     Object.assign(sun.shadow.camera, { left: -150, right: 150, top: 150, bottom: -150, far: 400 });
     this.scene.add(sun);
 
-    this.grid = new THREE.GridHelper(200, 200, 0x10b981, 0x26344f); this.grid.rotation.x = Math.PI / 2; this.scene.add(this.grid);
+    this.setGrid(200, 200);
     this.axes = new THREE.AxesHelper(10); this.scene.add(this.axes);
 
     this.ground = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
@@ -32,6 +32,11 @@ export class SceneManager {
     new ResizeObserver(() => this.resize()).observe(container);
     this.resize();
     this.renderer.setAnimationLoop(() => { this.cam.controls.update(); this.renderer.render(this.scene, this.cam.camera); });
+  }
+  setGrid(size, div) { // grid cell = 1 m (metric) or 1 ft (imperial)
+    const vis = this.grid ? this.grid.visible : true;
+    if (this.grid) { this.scene.remove(this.grid); this.grid.geometry.dispose(); [].concat(this.grid.material).forEach(m => m.dispose()); }
+    this.grid = new THREE.GridHelper(size, div, 0x10b981, 0x26344f); this.grid.rotation.x = Math.PI / 2; this.grid.visible = vis; this.scene.add(this.grid);
   }
   resize() {
     const w = this.container.clientWidth, h = this.container.clientHeight;

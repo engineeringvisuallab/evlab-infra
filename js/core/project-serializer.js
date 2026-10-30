@@ -20,6 +20,8 @@ export function parse(text) {
   if ((cr.minClearance !== null && !Number.isFinite(cr.minClearance)) || typeof cr.assumptions !== 'string' || !cr.checklist || typeof cr.checklist !== 'object') throw new Error('Crossing settings in the file are invalid.');
   const geo = { ...newMeta().geo, ...((d.meta && d.meta.geo) || {}) };
   for (const [k, lim] of [['originLon', 180], ['originLat', 90]]) if (geo[k] !== null && (!Number.isFinite(geo[k]) || Math.abs(geo[k]) > lim)) throw new Error(`Geographic origin in the file is invalid (${k}).`);
+  const units = d.meta && d.meta.units !== undefined ? d.meta.units : 'm';
+  if (units !== 'm' && units !== 'ft') throw new Error(`Unsupported display units "${units}" (use m or ft).`);
   const nums = d.objects.map(o => +(/^OBJ-(\d+)$/.exec(o.id) || [0, 0])[1]);
-  return { meta: { ...newMeta(), ...(d.meta || {}), crossing: cr, geo, units: 'm' }, objects: d.objects, nextId: Math.max(+d.nextId || 1, ...nums.map(n => n + 1)) };
+  return { meta: { ...newMeta(), ...(d.meta || {}), crossing: cr, geo, units }, objects: d.objects, nextId: Math.max(+d.nextId || 1, ...nums.map(n => n + 1)) };
 }

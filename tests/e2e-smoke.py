@@ -42,6 +42,14 @@ with sync_playwright() as p:
     ok(moved[1]['x'] != pt['x'] or moved[1]['y'] != pt['y'], 'dragging a handle moves the control point')
     ok(moved[0] == road['points'][0] and moved[2] == road['points'][2] and moved[1]['z'] == pt['z'], 'other points and the elevation are unchanged')
     page.click('[data-action=undo]'); ok(ev('evlab.project.objects.find(o=>o.type==="road")')['points'][1] == pt, 'undo restores the dragged point')
+    # double-click a road segment to insert a control point
+    p0, p1 = road['points'][0], road['points'][1]; mid = ev(f'evlab.sm.toScreen({(p0["x"] + p1["x"]) / 2},{(p0["y"] + p1["y"]) / 2},{(p0["z"] + p1["z"]) / 2})')
+    page.mouse.dblclick(mid['x'], mid['y']); ok(len(ev('evlab.project.objects.find(o=>o.type==="road")')['points']) == 4, 'double-click on a road segment inserts a control point')
+    page.click('[data-action=undo]'); ok(len(ev('evlab.project.objects.find(o=>o.type==="road")')['points']) == 3, 'undo removes the inserted point')
+    # horizontal curve on an interior point
+    r2 = page.locator('#properties .pt').nth(1).locator('input').nth(3); r2.fill('12'); r2.press('Tab')
+    ok(ev('evlab.project.objects.find(o=>o.type==="road").points[1].r') == 12 and 'Curve at point 2' in page.inner_text('#properties'), 'curve radius can be set on an interior point')
+    ok(page.locator('#properties canvas').count() == 2, 'profile and cross-section canvases are shown')
     page.click('[data-tool=pipe]'); [page.mouse.click(cx + dx, cy + dy) for dx, dy in ((-150, 180), (0, 150), (150, 190))]; page.keyboard.press('Enter')
     ok(ev('evlab.project.objects.filter(o=>o.type==="pipe").length') == 2 and ev('evlab.project.objects.filter(o=>o.type==="node").length') == 3, 'Draw pipe creates 3 nodes and 2 pipes')
     # M4: watercourse, bridge, culvert, crossings panel
@@ -72,6 +80,25 @@ with sync_playwright() as p:
     with page.expect_download() as d: page.click('#iopanel button:has-text("Export selected as STL")')
     ok(os.path.getsize(d.value.path()) > 84, 'STL export of the selected road has triangles')
     page.click('#iopanel button:has-text("Close")')
+    # terrain
+    csvp = os.path.join(tempfile.gettempdir(), 'evlab-terrain.csv'); open(csvp, 'w').write('x,y,z\n' + '\n'.join(f'{x},{y},{5 + 0.05 * x + 0.02 * y}' for x in range(-100, 101, 25) for y in range(-100, 101, 25)))
+    page.click('[data-action=io]')
+    with page.expect_file_chooser() as fc: page.click('#iopanel button:has-text("Import terrain")')
+    fc.value.set_files(csvp); page.wait_for_function('evlab.project.objects.some(o=>o.type==="terrain")'); ok(ev('evlab.project.objects.find(o=>o.type==="terrain").points.length') == 81, 'terrain CSV imports 81 points')
+    page.click('#iopanel button:has-text("Close")'); page.mouse.move(cx, cy); page.wait_for_timeout(200); ok('terrain Z' in page.inner_text('#st-cursor'), 'status bar shows terrain elevation under the cursor')
+    page.locator('#properties button', has_text='Set road control-point elevations').click(); page.wait_for_timeout(200)
+    ok(all(abs(q['z']) > 0.5 for q in ev('evlab.project.objects.find(o=>o.type==="road")')['points']), 'road elevations are set from terrain')
+    page.locator('#properties button', has_text='Set node ground levels').click(); page.wait_for_timeout(200); ok(ev('evlab.project.objects.filter(o=>o.type==="node").every(n=>n.groundLevel!==null)'), 'node ground levels are set from terrain')
+    ev('evlab.selection.set(evlab.project.objects.find(o=>o.type==="road").id)'); page.wait_for_timeout(200)
+    ok('ground at centerline' in page.inner_text('#properties'), 'cross-section reports ground at the centerline from terrain')
+    # display units: feet
+    ev('evlab.selection.set(null)'); page.select_option('#properties select', 'ft'); page.wait_for_timeout(200)
+    ok(ev('evlab.project.meta.units') == 'ft' and 'Units: ft' in page.inner_text('#st-units') and 'ft' in page.inner_text('#st-tool'), 'switching to feet updates units and snap label')
+    ev('evlab.selection.set("OBJ-0001")'); page.wait_for_timeout(150); wi = page.locator('#properties label.row', has_text='Width').locator('input'); w_m = ev('evlab.project.get("OBJ-0001").width')
+    ok(abs(float(wi.input_value()) - w_m / 0.3048) < 1e-3, 'width is shown in feet')
+    wi.fill('100'); wi.press('Tab'); ok(abs(ev('evlab.project.get("OBJ-0001").width') - 30.48) < 1e-6, 'typing 100 ft stores 30.48 m')
+    ev('evlab.selection.set(null)'); page.select_option('#properties select', 'm'); page.wait_for_timeout(150); ok(ev('evlab.project.meta.units') == 'm', 'switching back to metres works')
+    ev('evlab.selection.set(null)'); n = objs()
     # geographic origin + autosave + reload
     ev('evlab.selection.set(null)'); lon = page.locator('#properties label.row', has_text='Origin longitude').locator('input'); lon.fill('90.4'); lon.press('Tab')
     lat = page.locator('#properties label.row', has_text='Origin latitude').locator('input'); lat.fill('23.8'); lat.press('Tab')

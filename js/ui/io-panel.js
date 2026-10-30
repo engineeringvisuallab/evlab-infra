@@ -2,6 +2,9 @@ import { STLExporter } from 'three/addons/exporters/STLExporter.js';
 import { download, downloadProject } from '../io/json-io.js';
 import { toCsv, inventoryRows, importAssets } from '../io/csv-io.js';
 import { toGeoJSON, fromGeoJSON } from '../io/geojson-io.js';
+import { parseTerrainCsv } from '../io/terrain-csv.js';
+import { createTerrain } from '../models/terrain.js';
+import { validateObject } from '../models/registry.js';
 import { toDxf } from '../io/dxf-export.js';
 import { quantities, quantityCsv } from '../reports/quantity-report.js';
 import { projectReportHtml } from '../reports/project-report.js';
@@ -19,6 +22,9 @@ export function initIoPanel(root, { project, selection, history, bus, sm }) {
   const importGeo = t => { const r = fromGeoJSON(t, { mode, origin: origin(), lineAs, newId: () => project.newId() });
     if (r.objects.length) { history.record(); r.objects.forEach(o => project.objects.push(o)); project.changed(); }
     return [`Imported ${r.objects.length} feature(s) (${mode} coordinates; points → junction nodes, lines → ${lineAs}s).`, ...r.warnings, ...r.skipped.map(x => 'Not imported: ' + x)]; };
+  const importTerrain = t => { const r = parseTerrainCsv(t, { mode, origin: origin(), k: project.meta.units === 'ft' ? 0.3048 : 1 }), o = createTerrain(project.newId(), r.points), errs = validateObject(o); if (errs.length) throw new Error(errs[0]);
+    history.record(); project.add(o); selection.set(o.id);
+    return [`Imported terrain with ${r.points.length} point(s) (${mode} coordinates; values read as ${project.meta.units === 'ft' ? 'feet' : 'metres'}).`, ...r.warnings, ...r.skipped.map(x => 'Skipped: ' + x)]; };
   const stl = () => { const o = project.get(selection.id); if (!o) throw new Error('Select an object first.');
     const g = sm.layers[o.category].children.find(c => { let hit = false; c.traverse(x => { if (x.userData.id === o.id) hit = true; }); return hit; });
     if (!g) throw new Error('Object has no 3D mesh.'); g.updateMatrixWorld(true);
@@ -35,6 +41,7 @@ export function initIoPanel(root, { project, selection, history, bus, sm }) {
     const num = (v, ph, set) => { const i = mk('input', { type: 'number', step: 'any', value: v, placeholder: ph }); i.addEventListener('input', () => set(i.value)); return i; };
     const lab = (t, el) => mk('label', { className: 'row' }, [mk('span', { textContent: t }), el]);
     root.append(...section('Project', btn('Export project (JSON)', () => { downloadProject(project); return ['Project JSON downloaded.']; })),
+      mk('p', { className: 'muted', textContent: 'Inventory CSV, GeoJSON, DXF and STL are always in metres (diameter in mm). Reports follow the project display units.' }),
       ...section('Asset inventory (CSV)', btn('Export inventory CSV', () => { download(name() + '-inventory.csv', '\ufeff' + toCsv(inventoryRows(project)), 'text/csv'); return [`Exported ${project.objects.length} asset(s).`]; }),
         btn('Import CSV (update attributes by ID)', () => { pick('.csv,text/csv', importCsv); })),
       mk('p', { className: 'muted', textContent: 'CSV import only updates name, material, asset_id, diameter_mm, ground_level_m and invert_level_m of existing IDs. Blank cells are ignored; every skipped row is listed below.' }),
@@ -42,12 +49,14 @@ export function initIoPanel(root, { project, selection, history, bus, sm }) {
         btn('Open printable report', () => { const w = window.open(URL.createObjectURL(new Blob([projectReportHtml(project)], { type: 'text/html' })), '_blank'); return [w ? 'Report opened in a new tab. Use its Print button.' : 'The browser blocked the new tab. Use "Download report" instead.']; }),
         btn('Download report (.html)', () => { download(name() + '-report.html', projectReportHtml(project), 'text/html'); return ['Report downloaded.']; })),
       mk('h2', { textContent: 'GeoJSON' }),
-      lab('Coordinates', sel([['local', 'Local project metres (not lon/lat)'], ['geographic', 'Geographic lon/lat around an origin']], mode, v => { mode = v; })),
+      lab('Coordinates (GeoJSON, terrain CSV)', sel([['local', 'Local project metres (not lon/lat)'], ['geographic', 'Geographic lon/lat around an origin']], mode, v => { mode = v; })),
       mk('p', { className: 'muted', textContent: `Geographic origin (set it in Properties when nothing is selected): ${origin().lon == null ? 'not set' : origin().lon + ', ' + origin().lat}` }),
       lab('Import lines as', sel([['road', 'Roads'], ['watercourse', 'Watercourses']], lineAs, v => { lineAs = v; })),
       mk('div', { className: 'btns' }, [btn('Export GeoJSON', () => { const r = toGeoJSON(project, { mode, origin: origin() }); download(name() + '.geojson', JSON.stringify(r.geojson, null, 2), 'application/geo+json');
         return [`Exported ${r.geojson.features.length} feature(s) (${mode} coordinates).`, r.geojson.evlab.note, ...r.skipped.map(x => 'Not exported: ' + x)]; }), btn('Import GeoJSON', () => { pick('.geojson,.json,application/geo+json', importGeo); })]),
       mk('p', { className: 'muted', textContent: 'Geographic mode uses a simple local approximation around your origin (small areas only, not a projected CRS, not survey-grade). Only Point and LineString import; other geometry is listed as not imported.' }),
+      ...section('Terrain', btn('Import terrain points (CSV: x, y, z)', () => { pick('.csv,text/csv', importTerrain); })),
+      mk('p', { className: 'muted', textContent: 'Header optional. Up to 5000 points. Uses the Coordinates choice above (geographic needs the project origin). Elevations, and local x and y, are read in the project display units. Rows that are not numbers are skipped and listed.' }),
       ...section('CAD and 3D', btn('Export DXF (plan view)', () => { const r = toDxf(project); download(name() + '.dxf', r.text, 'application/dxf');
         return ['DXF (plan view, ASCII R12-style, elevations not exported; not DWG). Entities: ' + (Object.entries(r.counts).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'), ...r.skipped.map(x => 'Not exported: ' + x)]; }),
         btn('Export selected as STL', stl, !selection.id)),
