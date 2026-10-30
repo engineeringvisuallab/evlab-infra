@@ -4,8 +4,9 @@ export const MATERIALS = ['Asphalt', 'Concrete', 'Gravel', 'Earth'];
 export const schema = [{ k: 'name', l: 'Name', t: 'text' }, N('width', 'Road width (m)', 0.5, 100), N('thickness', 'Thickness (m)', 0.01, 5),
   { k: 'material', l: 'Material', t: 'select', opts: MATERIALS }, { k: 'color', l: 'Color', t: 'color' }];
 export const createRoad = (id, points) => ({ id, name: 'Road', category: 'roads', type: 'road', width: 7, thickness: 0.3, material: 'Asphalt', color: '#475569', points });
-export function validate(o) {
-  const e = checkSchema(schema, o);
+export function validate(o) { return [...checkSchema(schema, o), ...checkPoints(o)]; }
+export function checkPoints(o) {
+  const e = [];
   if (!Array.isArray(o.points) || o.points.length < 2) e.push('Road needs at least 2 control points');
   else o.points.forEach((p, i) => { for (const k of 'xyz') if (!p || !Number.isFinite(p[k]) || Math.abs(p[k]) > (k === 'z' ? 1e4 : 1e6)) e.push(`Point ${i + 1}: ${k.toUpperCase()} is invalid`); });
   return e;
@@ -20,3 +21,10 @@ export function roadStats(pts) {
   return { plan: chainage(pts).at(-1), len3d, maxGradePct };
 }
 export const fmtStation = s => { const r = Math.round(s); return `${Math.floor(r / 1000)}+${String(r % 1000).padStart(3, '0')}`; };
+// Plan-view edge offsets (average-tangent method; no mitering). Used by DXF export.
+export function roadEdges(pts, width) {
+  const hw = width / 2, n = pts.length, left = [], right = [];
+  pts.forEach((p, i) => { const a = pts[Math.max(i - 1, 0)], b = pts[Math.min(i + 1, n - 1)], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l * hw, ny = dx / l * hw;
+    left.push([p.x + nx, p.y + ny]); right.push([p.x - nx, p.y - ny]); });
+  return { left, right };
+}

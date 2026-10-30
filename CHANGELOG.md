@@ -1,0 +1,9 @@
+# Changelog
+- **0.8.0** Drag road and watercourse control points with handles in 3D (X, Y; elevation stays in the table).
+- **0.7.0** Show/hide panels (explorer, properties, status bar, toolbar, full view), remembered per browser. Deployment guide, first public release.
+- **0.6.0** Offline Three.js, geographic origin, validation panel, docs, browser smoke test.
+- **0.5.0** Measure tool, quantity and printable reports, CSV/GeoJSON/DXF/STL.
+- **0.4.0** Bridges, culverts, watercourses, crossings and checklist.
+- **0.3.0** Roads and water pipes.
+- **0.2.0** Project model, editing, undo/redo, save/open, autosave.
+- **0.1.0** Application shell and 3D viewport.

@@ -1,4 +1,4 @@
-body{display:grid;grid-template-columns:230px 1fr 270px;grid-template-rows:auto 1fr 26px;grid-template-areas:"tb tb tb" "ex vp pr" "st st st"}
+body{--ex:230px;--pr:270px;--st:26px;display:grid;grid-template-columns:var(--ex) 1fr var(--pr);grid-template-rows:auto 1fr var(--st);grid-template-areas:"tb tb tb" "ex vp pr" "st st st"}
 #toolbar{grid-area:tb;display:flex;gap:18px;align-items:center;flex-wrap:wrap;padding:6px 10px;background:var(--panel);border-bottom:1px solid var(--line)}
 #toolbar .group{display:flex;gap:4px}
 .brand{font-size:15px}.brand b{color:var(--em)}.brand small{color:var(--gold);margin-left:8px;font-size:10px}
@@ -11,3 +11,6 @@ body{display:grid;grid-template-columns:230px 1fr 270px;grid-template-rows:auto 
 #tree{list-style:none;margin:0;padding:0}
 #tree li{display:flex;align-items:center;gap:6px;padding:3px 0}
 #tree .n{margin-left:auto;color:var(--muted)}
+body.hide-explorer{--ex:0px}body.hide-properties{--pr:0px}body.hide-status{--st:0px}
+body.hide-explorer #explorer,body.hide-properties #properties,body.hide-status #status,body.hide-toolbar #toolbar{display:none}
+#tb-restore{display:none;position:fixed;top:8px;left:8px;z-index:30}body.hide-toolbar #tb-restore{display:block}

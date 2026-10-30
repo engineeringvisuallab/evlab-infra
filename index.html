@@ -3,11 +3,13 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="EVLab Infra: free browser-based infrastructure planning and preliminary design by Engineering Visual Lab.">
 <title>EVLab Infra</title>
+<link rel="icon" href="data:,">
 <link rel="stylesheet" href="css/main.css">
 <link rel="stylesheet" href="css/layout.css">
 <script type="importmap">
-{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
+{"imports":{"three":"./vendor/three/three.module.js","three/addons/":"./vendor/three/addons/"}}
 </script>
 </head>
 <body>
@@ -19,11 +21,11 @@
     <input type="file" id="file-open" accept=".json,application/json" hidden>
   </div>
   <div class="group">
-    <button data-action="tool" data-tool="select" class="on">Select</button><button data-action="tool" data-tool="road">Draw road</button><button data-action="tool" data-tool="pipe">Draw pipe</button>
+    <button data-action="tool" data-tool="select" class="on">Select</button><button data-action="tool" data-tool="road">Draw road</button><button data-action="tool" data-tool="pipe">Draw pipe</button><button data-action="tool" data-tool="watercourse">Draw watercourse</button>
   </div>
   <div class="group">
-    <button data-action="add">Add block</button><button data-action="delete">Delete</button><button data-action="snap" class="on">Snap</button>
-    <button disabled title="Milestone 5">Measure</button><button disabled title="Milestone 5">Import / Export</button>
+    <button data-action="add">Add block</button><button data-action="addBridge">Add bridge</button><button data-action="addCulvert">Add culvert</button><button data-action="delete">Delete</button><button data-action="snap" class="on">Snap</button>
+    <button data-action="crossings">Crossings</button><button data-action="validate">Validate</button><button data-action="tool" data-tool="measure">Measure</button><button data-action="io">Import / Export</button>
   </div>
   <div class="group">
     <button data-action="camera" id="btn-camera">Perspective</button>
@@ -33,13 +35,17 @@
     <button data-action="axes" class="on">Axes</button>
     <button data-action="shadows" class="on">Shadows</button>
   </div>
+  <div class="group" title="Show or hide panels (key F = full view)">
+    <button data-panel="explorer" class="on">Explorer</button><button data-panel="properties" class="on">Properties</button><button data-panel="status" class="on">Status bar</button><button data-panel="toolbar" class="on">Toolbar</button><button id="btn-full">Full view</button>
+  </div>
 </header>
+<button id="tb-restore" title="Show toolbar">☰ Show toolbar</button>
 <aside id="explorer"><h2>Project explorer</h2><ul id="tree"></ul></aside>
-<main id="viewport"></main>
+<main id="viewport"><section id="crossings" hidden></section><section id="iopanel" hidden></section><section id="valpanel" hidden></section></main>
 <aside id="properties"><h2>Properties</h2></aside>
 <footer id="status">
   <span id="st-cursor">X — Y —</span><span id="st-tool">Tool: Select / Move</span><span id="st-units">Units: m</span>
-  <span id="st-count">Objects: 0</span><span id="st-crs">CRS: Local engineering (Z-up)</span><span id="st-save"></span><span id="st-valid">Validation: nothing to validate</span>
+  <span id="st-count">Objects: 0</span><span id="st-crs">CRS: Local engineering (Z-up)</span><span id="st-save"></span><span id="st-measure"></span><span id="st-valid">Validation: nothing to validate</span>
 </footer>
 <script type="module" src="js/app.js"></script>
 </body>

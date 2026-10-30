@@ -7,7 +7,7 @@ function label(text) {
   x.font = 'bold 22px sans-serif'; x.fillStyle = '#e2e8f0'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText(text, 64, 16);
   return new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), depthTest: false, transparent: true }));
 }
-export function buildRoad(o, sel) {
+export function buildRoad(o, sel, stations = true) {
   const g = new THREE.Group(), P = o.points, n = P.length, hw = o.width / 2, t = o.thickness;
   const tan = P.map((p, i) => { const a = P[Math.max(i - 1, 0)], b = P[Math.min(i + 1, n - 1)], dx = b.x - a.x, dy = b.y - a.y, l = Math.hypot(dx, dy) || 1; return [dx / l, dy / l]; });
   const v = [], left = [], right = [];
@@ -22,7 +22,13 @@ export function buildRoad(o, sel) {
   mesh.castShadow = mesh.receiveShadow = true; mesh.userData.id = o.id; g.add(mesh);
   const edge = new THREE.LineBasicMaterial({ color: sel ? 0xd4a64a : 0xe2e8f0 });
   g.add(line(left, edge), line(right, edge));
+  if (sel) { // draggable control-point handles (Select tool)
+    const r = Math.max(hw * 0.3, 0.5);
+    P.forEach((p, i) => { const h = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), new THREE.MeshBasicMaterial({ color: 0xd4a64a, depthTest: false }));
+      h.position.set(p.x, p.y, p.z + 0.3); h.renderOrder = 10; h.userData.id = o.id; h.userData.handle = i; g.add(h); });
+  }
   const cl = line(P.map(p => [p.x, p.y, p.z + 0.04]), new THREE.LineDashedMaterial({ color: 0xd4a64a, dashSize: 1, gapSize: 0.5 })); cl.computeLineDistances(); g.add(cl);
+  if (!stations) return g;
   // station markers (chainage measured along the plan view)
   const c = chainage(P), L = c[n - 1]; let step = CONFIG.stationInterval; while (L / step > 300) step *= 2;
   const k = Math.max(hw * 0.5, 1.5);

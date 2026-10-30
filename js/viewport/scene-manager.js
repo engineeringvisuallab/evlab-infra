@@ -37,6 +37,12 @@ export class SceneManager {
     const w = this.container.clientWidth, h = this.container.clientHeight;
     if (!w || !h) return; this.renderer.setSize(w, h); this.cam.resize(w, h);
   }
+  planePoint(e, z) { this.groundPoint(e); return this.ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0, 0, 1), -z), new THREE.Vector3()); }
+  pickHandle(e) {
+    this.groundPoint(e); const vis = o => { for (; o; o = o.parent) if (!o.visible) return false; return true; };
+    return this.ray.intersectObjects(Object.values(this.layers), true).find(h => h.object.userData.handle !== undefined && vis(h.object));
+  }
+  toScreen(x, y, z) { const v = new THREE.Vector3(x, y, z).project(this.cam.camera), r = this.renderer.domElement.getBoundingClientRect(); return { x: r.left + (v.x + 1) / 2 * r.width, y: r.top + (1 - v.y) / 2 * r.height }; }
   groundPoint(e) {
     const r = this.renderer.domElement.getBoundingClientRect();
     this.ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);

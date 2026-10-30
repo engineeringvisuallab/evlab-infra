@@ -1,16 +1,20 @@
 import { createBlock } from '../models/block.js';
+import { createBridge } from '../models/bridge.js';
+import { createCulvert } from '../models/culvert.js';
 import { downloadProject, readProjectFile } from '../io/json-io.js';
 export function initToolbar({ sm, project, history, selection, state, bus, setTool }) {
   const cam = sm.cam, $ = s => document.querySelector(s), camBtn = $('#btn-camera'), file = $('#file-open');
   const flip = (b, on) => b.classList.toggle('on', on);
   const del = () => { if (!selection.id) return; history.record(); const id = selection.id; selection.set(null); project.remove(id); };
+  const place = make => { const t = cam.controls.target, s = v => state.snap ? Math.round(v / state.gridSize) * state.gridSize : v;
+    history.record(); selection.set(project.add(make(project.newId(), s(t.x), s(t.y))).id); };
   const act = {
     new: () => { if (project.objects.length && !confirm('Start a new project? Unsaved changes will be lost.')) return; selection.set(null); project.reset(); history.clear(); },
     open: () => file.click(), save: () => downloadProject(project),
     undo: () => history.undo(), redo: () => history.redo(),
     add: () => { const t = cam.controls.target, s = v => state.snap ? Math.round(v / state.gridSize) * state.gridSize : v;
       history.record(); const o = project.add(createBlock(project.newId(), s(t.x), s(t.y))); selection.set(o.id); },
-    delete: del,
+    delete: del, addBridge: () => place(createBridge), addCulvert: () => place(createCulvert), crossings: () => bus.emit('panel', 'crossings'), io: () => bus.emit('panel', 'io'), validate: () => bus.emit('panel', 'validate'),
     tool: b => setTool(b.dataset.tool),
     snap: b => { state.snap = !state.snap; flip(b, state.snap); bus.emit('snap'); },
     camera: () => { cam.setMode(cam.mode === 'perspective' ? 'orthographic' : 'perspective'); camBtn.textContent = cam.mode === 'perspective' ? 'Perspective' : 'Orthographic'; },
