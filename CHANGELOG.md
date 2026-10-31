@@ -1,4 +1,6 @@
 # Changelog
+- **0.13.0** LandXML 1.2 import and export (terrain surfaces, line/curve alignments with PVI profiles), projected origin for large coordinates.
+- **0.12.0** Edge tabs and keys ([, ], F) to hide or show panels; drag the panel edge to resize, double-click to reset.
 - **0.11.0** Display units: metres or feet (inches for pipe diameter) for editing, readouts, reports and terrain CSV import; grid and snap follow the unit.
 - **0.10.0** Horizontal curves on roads and watercourses (radius per interior point), cross-section view, terrain ground line on the profile.
 - **0.9.0** Terrain (TIN from x, y, z CSV points) with elevation readout, set road elevations and node ground levels from terrain. Double-click a road to insert a control point.

@@ -139,4 +139,27 @@ const uq = quantities(up).sections[0]; assert.ok(/ft/.test(uq.headers[3]) && /ft
 assert.equal(parse(serialize(up)).meta.units, 'ft'); const badU = JSON.parse(serialize(up)); badU.meta.units = 'yd'; assert.throws(() => parse(JSON.stringify(badU)), /units/i);
 const tk = parseTerrainCsv('x,y,z\n0,0,10\n100,0,20\n0,100,30', { mode: 'local', k: 0.3048 }); assert.ok(Math.abs(tk.points[1].x - 30.48) < 1e-9 && Math.abs(tk.points[2].z - 9.144) < 1e-9);
 assert.ok(projectReportHtml(up).includes('Feet'));
+// LandXML
+import { parseXml } from '../js/io/xml-lite.js';
+import { exportLandXml, importLandXml } from '../js/io/landxml-io.js';
+import { alignmentElements } from '../js/models/alignment.js';
+const xp = parseXml('<?xml version="1.0"?><!-- c --><lx:A x="1"><B>t&amp;u</B><C/></lx:A>'); assert.equal(xp.name, 'A'); assert.equal(xp.attrs.x, '1'); assert.equal(xp.children[0].text, 't&u'); assert.equal(xp.children[1].name, 'C');
+assert.throws(() => parseXml('<A><B></A>'), /closing tag/); assert.throws(() => parseXml('<!DOCTYPE x [<!ENTITY a "b">]><x/>'), /DOCTYPE/);
+const ae = alignmentElements(corner(20)); assert.equal(ae.elements.length, 3); assert.ok(Math.abs(ae.length - (160 + 20 * Math.PI / 2)) < 1e-9); assert.ok(Math.abs(ae.stations[1] - 100) < 1e-9 && Math.abs(ae.stations[2] - ae.length) < 1e-9);
+const lp = new Project(bus); lp.meta.name = 'A & B'; lp.add(createTerrain('OBJ-0001', gridPts)); lp.add(createRoad('OBJ-0002', corner(20))); lp.nextId = 3;
+const lx = exportLandXml(lp); assert.ok(lx.xml.includes('<Surface') && lx.xml.includes('<Curve') && lx.xml.includes('<PVI>') && lx.xml.includes('A &amp; B')); assert.equal(lx.counts.surfaces, 1);
+let gid = 0; const idg = () => 'L' + gid++;
+const lb = importLandXml(lx.xml, { lineAs: 'road', newId: idg, origin: null, hasObjects: false }); assert.equal(lb.objects.length, 2); assert.equal(lb.originSet, false);
+const bt = lb.objects.find(o => o.type === 'terrain'), br = lb.objects.find(o => o.type === 'road');
+assert.equal(bt.points.length, 25); assert.ok(Math.abs(bt.points[7].x - gridPts[7].x) < 1e-3 && Math.abs(bt.points[7].y - gridPts[7].y) < 1e-3 && Math.abs(bt.points[7].z - gridPts[7].z) < 1e-3);
+assert.equal(br.points.length, 3); assert.ok(br.points.every((p, i) => Math.abs(p.x - corner(20)[i].x) < 1e-3 && Math.abs(p.y - corner(20)[i].y) < 1e-3 && Math.abs(p.z - corner(20)[i].z) < 1e-3)); assert.ok(Math.abs(br.points[1].r - 20) < 1e-3 && br.points[0].r === undefined);
+lp.meta.projOrigin = { x: 500000, y: 4000000 }; const bigx = exportLandXml(lp).xml; assert.ok(bigx.includes('4000100') || bigx.includes('4000000'));
+const bi = importLandXml(bigx, { lineAs: 'road', newId: idg, origin: null, hasObjects: false }); assert.equal(bi.originSet, true); assert.ok(bi.objects.every(o => o.points.every(p => Math.abs(p.x) < 1000 && Math.abs(p.y) < 1000)));
+const bo = importLandXml(bigx, { lineAs: 'watercourse', newId: idg, origin: { x: 500000, y: 4000000 }, hasObjects: true }); assert.ok(Math.abs(bo.objects.find(o => o.type === 'watercourse').points[1].x - 100) < 1e-3); assert.equal(bo.originSet, false);
+assert.throws(() => importLandXml(bigx, { lineAs: 'road', newId: idg, origin: null, hasObjects: true }), /new, empty project/);
+const imp = '<LandXML><Units><Imperial linearUnit="foot"/></Units><Surfaces><Surface name="S"><Definition surfType="TIN"><Pnts><P id="1">0 0 10</P><P id="2">0 100 20</P><P id="3">100 0 30</P><P id="4">x y z</P></Pnts></Definition></Surface></Surfaces><Alignments><Alignment name="L" staStart="0"><CoordGeom><Line><Start>0 0</Start><End>0 100</End></Line></CoordGeom><Profile><ProfAlign name="p"><PVI>0 5</PVI><PVI>100 15</PVI></ProfAlign></Profile></Alignment><Alignment name="Sp"><CoordGeom><Spiral/></CoordGeom></Alignment></Alignments></LandXML>';
+const ib = importLandXml(imp, { lineAs: 'road', newId: idg, origin: null, hasObjects: false }); assert.equal(ib.objects.length, 2); assert.ok(Math.abs(ib.objects[0].points[1].x - 30.48) < 1e-6 && Math.abs(ib.objects[0].points[2].z - 9.144) < 1e-6);
+assert.ok(Math.abs(ib.objects[1].points[0].z - 1.524) < 1e-6 && Math.abs(ib.objects[1].points[1].z - 4.572) < 1e-6 && Math.abs(ib.objects[1].points[1].x - 30.48) < 1e-6); assert.equal(ib.skipped.length, 2);
+assert.throws(() => importLandXml('<Foo/>', { newId: idg }), /not a LandXML/); assert.throws(() => exportLandXml(new Project(bus)), /Nothing to export/);
+assert.equal(parse(serialize(lp)).meta.projOrigin.x, 500000); const badO = JSON.parse(serialize(lp)); badO.meta.projOrigin = { x: 'a', y: 1 }; assert.throws(() => parse(JSON.stringify(badO)), /origin/);
 console.log('All unit tests passed');

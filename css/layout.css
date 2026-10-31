@@ -14,3 +14,11 @@ body{--ex:230px;--pr:310px;--st:26px;display:grid;grid-template-columns:var(--ex
 body.hide-explorer{--ex:0px}body.hide-properties{--pr:0px}body.hide-status{--st:0px}
 body.hide-explorer #explorer,body.hide-properties #properties,body.hide-status #status,body.hide-toolbar #toolbar{display:none}
 #tb-restore{display:none;position:fixed;top:8px;left:8px;z-index:30}body.hide-toolbar #tb-restore{display:block}
+#explorer,#properties{position:relative}
+.splitter{position:absolute;top:0;bottom:0;width:6px;cursor:col-resize;z-index:6;background:transparent}.splitter:hover{background:var(--em);opacity:.5}
+#split-explorer{right:0}#split-properties{left:0}
+.edge-tab{position:absolute;z-index:7;background:var(--panel);color:var(--gold);border:1px solid var(--line);opacity:.75;padding:0;font-size:11px;line-height:1}
+.edge-tab:hover:not(:disabled){opacity:1;border-color:var(--em)}
+#tab-explorer{left:0;top:50%;width:16px;height:54px;border-radius:0 6px 6px 0;border-left:0}
+#tab-properties{right:0;top:50%;width:16px;height:54px;border-radius:6px 0 0 6px;border-right:0}
+#tab-status{left:50%;bottom:0;width:54px;height:16px;border-radius:6px 6px 0 0;border-bottom:0}

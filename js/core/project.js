@@ -1,7 +1,7 @@
 import { CONFIG } from '../config.js';
 export const newMeta = () => ({ name: 'Untitled project', appVersion: CONFIG.version, created: new Date().toISOString(),
   modified: null, crs: 'LOCAL-ENG (local engineering, metres, Z-up)', units: 'm',
-  crossing: { minClearance: null, assumptions: '', checklist: {} }, geo: { originLon: null, originLat: null } });
+  crossing: { minClearance: null, assumptions: '', checklist: {} }, geo: { originLon: null, originLat: null }, projOrigin: null });
 export class Project {
   constructor(bus) { this.bus = bus; this.meta = newMeta(); this.objects = []; this.nextId = 1; }
   reset() { this.load({ meta: newMeta(), objects: [], nextId: 1 }); }

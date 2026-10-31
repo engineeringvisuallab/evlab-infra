@@ -1,6 +1,6 @@
 # EVLab Infra
 **Engineering Visual Lab (EVLab) · Engineering • Innovation • Learning**
-A free, open-source, browser-based tool for preliminary infrastructure planning: roads, water pipelines, bridges, culverts and watercourses in 3D. It has no server, no API keys and no build step. Version 0.11.0.
+A free, open-source, browser-based tool for preliminary infrastructure planning: roads, water pipelines, bridges, culverts and watercourses in 3D. It has no server, no API keys and no build step. Version 0.13.0.
 
 > **Engineering disclaimer:** EVLab Infra produces preliminary visualization and geometric quantities only. It is not a substitute for verified engineering design. Conceptual bridges and culverts are not construction-ready or structurally certified, and no hydraulic, structural or geotechnical analysis is performed.
 
@@ -31,17 +31,19 @@ Toolbar: **Select** (click, drag to move) · **Draw road / pipe / watercourse** 
 - Conceptual bridges, culverts and watercourses; crossing inventory with entered clearance requirements, assumptions and checklist
 - 3D distance measurement; quantity report (CSV); printable HTML report; inventory CSV export/import; GeoJSON export/import; DXF (plan) and STL export
 - Validation panel (missing/inconsistent data, orphan nodes, duplicate asset IDs, zero-length segments, steep-grade heuristic)
+- LandXML 1.2 import/export (terrain TIN surfaces, line/curve alignments with profiles; see `docs/LANDXML.md`)
 - Display units: metres or feet (inches for pipe diameter); data stays metric internally
-- Show/hide panels with remembered layout
+- Show/hide panels (toolbar buttons, edge tabs, keys [ ] F) and drag-to-resize side panels, remembered per browser
 - Optional geographic origin with cursor lon/lat readout
 
 **Partial**
 - GeoJSON/CSV import cover Point and LineString and a few attributes only. Roads are straight segments (no curves, superelevation or design standards).
 
 **Planned / not implemented**
-- Terrain from DEM rasters (GeoTIFF), breaklines, contours, cut/fill, aerial imagery, 3D Tiles, online map services (see `docs/GIS.md`), DWG, rotate handles in the viewport, hydraulic analysis
+- Terrain from DEM rasters (GeoTIFF/ASC), breaklines, contours, cut/fill, aerial imagery, 3D Tiles, online map services (see `docs/GIS.md`), DWG, rotate handles in the viewport, hydraulic analysis
 
 ## Known limitations
+- LandXML covers a subset only (no spirals, pipe networks, parcels or cross-sections). Faces of imported surfaces are rebuilt as a Delaunay TIN.
 - Display units (project settings) affect the screen, reports and terrain CSV import. Inventory CSV, GeoJSON, DXF and STL are always metric. The grid cell is 1 m or 1 ft.
 - Horizontal curves are simple circular arcs (no spirals, superelevation or design standards). A radius that is too large for the adjacent segments is reduced and flagged. Cross-sections use a flat cross-fall with no side slopes or earthwork volumes.
 - Terrain is a TIN from up to 5000 points with linear interpolation. No breaklines, contours or cut/fill. Quality depends on your data; not survey-grade.

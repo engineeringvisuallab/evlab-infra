@@ -30,7 +30,7 @@ const setTool = t => { state.tool = t; bus.emit('tool', t); };
 const ctx = { bus, state, project, history, selection, sm, setTool };
 initObjectSync(ctx); initPicking(ctx); initMeasureTool(ctx); initDrawRoadTool(ctx); initDrawRoadTool(ctx, 'watercourse', createWatercourse); initDrawPipeTool(ctx); initToolbar(ctx);
 initProjectTree(document.getElementById('tree'), ctx);
-initPropertiesPanel(document.getElementById('properties'), ctx); initStatusBar(ctx); initCrossingsPanel(document.getElementById('crossings'), ctx); initIoPanel(document.getElementById('iopanel'), ctx); initValidationPanel(document.getElementById('valpanel'), ctx);
+initPropertiesPanel(document.getElementById('props-body'), ctx); initStatusBar(ctx); initCrossingsPanel(document.getElementById('crossings'), ctx); initIoPanel(document.getElementById('iopanel'), ctx); initValidationPanel(document.getElementById('valpanel'), ctx);
 
 bus.on('model-changed', () => { if (selection.id && !project.get(selection.id)) selection.set(null); });
 

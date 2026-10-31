@@ -35,14 +35,14 @@
     <button data-action="axes" class="on">Axes</button>
     <button data-action="shadows" class="on">Shadows</button>
   </div>
-  <div class="group" title="Show or hide panels (key F = full view)">
+  <div class="group" title="Show or hide panels. Keys: [ explorer, ] properties, F full view">
     <button data-panel="explorer" class="on">Explorer</button><button data-panel="properties" class="on">Properties</button><button data-panel="status" class="on">Status bar</button><button data-panel="toolbar" class="on">Toolbar</button><button id="btn-full">Full view</button>
   </div>
 </header>
 <button id="tb-restore" title="Show toolbar">☰ Show toolbar</button>
-<aside id="explorer"><h2>Project explorer</h2><ul id="tree"></ul></aside>
-<main id="viewport"><section id="crossings" hidden></section><section id="iopanel" hidden></section><section id="valpanel" hidden></section></main>
-<aside id="properties"><h2>Properties</h2></aside>
+<aside id="explorer"><h2>Project explorer</h2><ul id="tree"></ul><div class="splitter" id="split-explorer" title="Drag to resize, double-click to reset"></div></aside>
+<main id="viewport"><button class="edge-tab" id="tab-explorer" title="Hide or show the explorer (key [ )">◀</button><button class="edge-tab" id="tab-properties" title="Hide or show properties (key ] )">▶</button><button class="edge-tab" id="tab-status" title="Hide or show the status bar">▼</button><section id="crossings" hidden></section><section id="iopanel" hidden></section><section id="valpanel" hidden></section></main>
+<aside id="properties"><div class="splitter" id="split-properties" title="Drag to resize, double-click to reset"></div><div id="props-body"><h2>Properties</h2></div></aside>
 <footer id="status">
   <span id="st-cursor">X — Y —</span><span id="st-tool">Tool: Select / Move</span><span id="st-units">Units: m</span>
   <span id="st-count">Objects: 0</span><span id="st-crs">CRS: Local engineering (Z-up)</span><span id="st-save"></span><span id="st-measure"></span><span id="st-valid">Validation: nothing to validate</span>

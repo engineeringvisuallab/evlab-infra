@@ -5,6 +5,7 @@ import { toGeoJSON, fromGeoJSON } from '../io/geojson-io.js';
 import { parseTerrainCsv } from '../io/terrain-csv.js';
 import { createTerrain } from '../models/terrain.js';
 import { validateObject } from '../models/registry.js';
+import { exportLandXml, importLandXml } from '../io/landxml-io.js';
 import { toDxf } from '../io/dxf-export.js';
 import { quantities, quantityCsv } from '../reports/quantity-report.js';
 import { projectReportHtml } from '../reports/project-report.js';
@@ -25,6 +26,10 @@ export function initIoPanel(root, { project, selection, history, bus, sm }) {
   const importTerrain = t => { const r = parseTerrainCsv(t, { mode, origin: origin(), k: project.meta.units === 'ft' ? 0.3048 : 1 }), o = createTerrain(project.newId(), r.points), errs = validateObject(o); if (errs.length) throw new Error(errs[0]);
     history.record(); project.add(o); selection.set(o.id);
     return [`Imported terrain with ${r.points.length} point(s) (${mode} coordinates; values read as ${project.meta.units === 'ft' ? 'feet' : 'metres'}).`, ...r.warnings, ...r.skipped.map(x => 'Skipped: ' + x)]; };
+  const importLx = t => { const r = importLandXml(t, { lineAs, newId: () => project.newId(), origin: project.meta.projOrigin, hasObjects: project.objects.length > 0 });
+    if (r.objects.length) { history.record(); r.objects.forEach(o => project.objects.push(o)); if (r.originSet) project.meta.projOrigin = r.origin; project.changed(); }
+    const nt = r.objects.filter(o => o.type === 'terrain').length;
+    return [`Imported ${nt} terrain surface(s) and ${r.objects.length - nt} alignment(s) as ${lineAs}s.`, r.originSet ? `Large coordinates: the local origin was set to E ${r.origin.x}, N ${r.origin.y} (m). LandXML export adds it back.` : '', ...r.warnings, ...r.skipped.map(x => 'Not imported: ' + x)].filter(Boolean); };
   const stl = () => { const o = project.get(selection.id); if (!o) throw new Error('Select an object first.');
     const g = sm.layers[o.category].children.find(c => { let hit = false; c.traverse(x => { if (x.userData.id === o.id) hit = true; }); return hit; });
     if (!g) throw new Error('Object has no 3D mesh.'); g.updateMatrixWorld(true);
@@ -51,12 +56,15 @@ export function initIoPanel(root, { project, selection, history, bus, sm }) {
       mk('h2', { textContent: 'GeoJSON' }),
       lab('Coordinates (GeoJSON, terrain CSV)', sel([['local', 'Local project metres (not lon/lat)'], ['geographic', 'Geographic lon/lat around an origin']], mode, v => { mode = v; })),
       mk('p', { className: 'muted', textContent: `Geographic origin (set it in Properties when nothing is selected): ${origin().lon == null ? 'not set' : origin().lon + ', ' + origin().lat}` }),
-      lab('Import lines as', sel([['road', 'Roads'], ['watercourse', 'Watercourses']], lineAs, v => { lineAs = v; })),
+      lab('Import lines as (GeoJSON, LandXML)', sel([['road', 'Roads'], ['watercourse', 'Watercourses']], lineAs, v => { lineAs = v; })),
       mk('div', { className: 'btns' }, [btn('Export GeoJSON', () => { const r = toGeoJSON(project, { mode, origin: origin() }); download(name() + '.geojson', JSON.stringify(r.geojson, null, 2), 'application/geo+json');
         return [`Exported ${r.geojson.features.length} feature(s) (${mode} coordinates).`, r.geojson.evlab.note, ...r.skipped.map(x => 'Not exported: ' + x)]; }), btn('Import GeoJSON', () => { pick('.geojson,.json,application/geo+json', importGeo); })]),
       mk('p', { className: 'muted', textContent: 'Geographic mode uses a simple local approximation around your origin (small areas only, not a projected CRS, not survey-grade). Only Point and LineString import; other geometry is listed as not imported.' }),
       ...section('Terrain', btn('Import terrain points (CSV: x, y, z)', () => { pick('.csv,text/csv', importTerrain); })),
       mk('p', { className: 'muted', textContent: 'Header optional. Up to 5000 points. Uses the Coordinates choice above (geographic needs the project origin). Elevations, and local x and y, are read in the project display units. Rows that are not numbers are skipped and listed.' }),
+      ...section('LandXML 1.2 (terrain surfaces and alignments)', btn('Export LandXML', () => { const r = exportLandXml(project); download(name() + '.xml', r.xml, 'application/xml'); return [`Exported ${r.counts.surfaces} surface(s) and ${r.counts.alignments} alignment(s), in metres${project.meta.projOrigin ? ', with the projected origin added back' : ''}.`, ...r.skipped.map(x => 'Not exported: ' + x)]; }),
+        btn('Import LandXML', () => { pick('.xml,.landxml,text/xml', importLx); })),
+      mk('p', { className: 'muted', textContent: 'Supported: TIN surfaces (rebuilt as a Delaunay TIN from the points) and Line/Curve alignments with PVI profiles. Spirals, pipe networks and other content are listed as not imported. Large projected coordinates are re-centered in a new project.' }),
       ...section('CAD and 3D', btn('Export DXF (plan view)', () => { const r = toDxf(project); download(name() + '.dxf', r.text, 'application/dxf');
         return ['DXF (plan view, ASCII R12-style, elevations not exported; not DWG). Entities: ' + (Object.entries(r.counts).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'), ...r.skipped.map(x => 'Not exported: ' + x)]; }),
         btn('Export selected as STL', stl, !selection.id)),
