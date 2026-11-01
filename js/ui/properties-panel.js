@@ -4,6 +4,7 @@ import { checkValue, N } from '../models/schema.js';
 import { roadStats } from '../models/road.js';
 import { pipeLength } from '../models/pipe.js';
 import { terrainMesh, elevationAt } from '../models/terrain.js';
+import { contourSegments, MAX_LEVELS } from '../models/contours.js';
 import { drawProfile, drawSection } from './profile-view.js';
 import { alignment } from '../models/alignment.js';
 import { groundProfile, crossSection } from '../models/sections.js';
@@ -68,7 +69,9 @@ export function initPropertiesPanel(root, { project, selection, history, bus }) 
     if (o.type === 'culvert') root.append(info('Overall width', dl((o.barrels * o.barrelWidth + (o.barrels + 1) * o.wallThickness), 3)), info('Total opening area', da((o.barrels * o.barrelWidth * o.barrelHeight), 3)), note('Conceptual model: no hydraulic capacity check; not construction-ready or structurally certified.'));
     if (o.type === 'terrain') {
       const { stats, dupes } = terrainMesh(o);
-      root.append(info('Points', o.points.length + (dupes ? ` (${dupes} duplicate ignored)` : '')), info('Triangles', stats.triangles), info('Plan area', da(stats.area, 1)), info('Elevation range', `${dl(stats.minZ, 3, false)} to ${dl(stats.maxZ, 3)}`));
+      root.append(info('Points', o.points.length + (dupes ? ` (${dupes} duplicate ignored)` : '')), info('Triangles', stats.triangles), info('Slope (area-weighted mean / max)', `${stats.meanSlopeDeg.toFixed(1)}° / ${stats.maxSlopeDeg.toFixed(1)}°`), info('Plan area', da(stats.area, 1)), info('Elevation range', `${dl(stats.minZ, 3, false)} to ${dl(stats.maxZ, 3)}`));
+      if (o.contourInterval) { const c = contourSegments(o, o.contourInterval); root.append(c.tooMany ? mk('p', { className: 'warn', textContent: `⚠ ${c.levels} contour levels is too many (limit ${MAX_LEVELS}); increase the interval.` }) : info('Contours', `${c.levels} level(s); every 5th is drawn in yellow`)); }
+      if (o.shading === 'Slope') root.append(note('Slope shading: green = flat, yellow = 22°, red = 45° or steeper (per triangle).'));
       const apply = (label, collect) => { const b = mk('button', { textContent: label }); b.addEventListener('click', () => {
         const patches = [], outside = []; collect(patches, outside);
         if (!patches.length) { msg.textContent = outside.length ? `All ${outside.length} target(s) are outside this terrain.` : 'Nothing to update.'; return; }

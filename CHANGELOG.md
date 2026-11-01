@@ -1,4 +1,5 @@
 # Changelog
+- **0.14.0** ESRI ASCII grid (.asc) elevation import, contour lines, slope shading and slope statistics, terrain limit raised to 10000 points, large projected coordinates re-centered for terrain imports.
 - **0.13.0** LandXML 1.2 import and export (terrain surfaces, line/curve alignments with PVI profiles), projected origin for large coordinates.
 - **0.12.0** Edge tabs and keys ([, ], F) to hide or show panels; drag the panel edge to resize, double-click to reset.
 - **0.11.0** Display units: metres or feet (inches for pipe diameter) for editing, readouts, reports and terrain CSV import; grid and snap follow the unit.

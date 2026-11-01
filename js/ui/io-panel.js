@@ -6,6 +6,8 @@ import { parseTerrainCsv } from '../io/terrain-csv.js';
 import { createTerrain } from '../models/terrain.js';
 import { validateObject } from '../models/registry.js';
 import { exportLandXml, importLandXml } from '../io/landxml-io.js';
+import { parseAscGrid } from '../io/asc-grid.js';
+import { localize } from '../io/origin.js';
 import { toDxf } from '../io/dxf-export.js';
 import { quantities, quantityCsv } from '../reports/quantity-report.js';
 import { projectReportHtml } from '../reports/project-report.js';
@@ -23,9 +25,16 @@ export function initIoPanel(root, { project, selection, history, bus, sm }) {
   const importGeo = t => { const r = fromGeoJSON(t, { mode, origin: origin(), lineAs, newId: () => project.newId() });
     if (r.objects.length) { history.record(); r.objects.forEach(o => project.objects.push(o)); project.changed(); }
     return [`Imported ${r.objects.length} feature(s) (${mode} coordinates; points → junction nodes, lines → ${lineAs}s).`, ...r.warnings, ...r.skipped.map(x => 'Not imported: ' + x)]; };
-  const importTerrain = t => { const r = parseTerrainCsv(t, { mode, origin: origin(), k: project.meta.units === 'ft' ? 0.3048 : 1 }), o = createTerrain(project.newId(), r.points), errs = validateObject(o); if (errs.length) throw new Error(errs[0]);
-    history.record(); project.add(o); selection.set(o.id);
-    return [`Imported terrain with ${r.points.length} point(s) (${mode} coordinates; values read as ${project.meta.units === 'ft' ? 'feet' : 'metres'}).`, ...r.warnings, ...r.skipped.map(x => 'Skipped: ' + x)]; };
+  const addTerrain = (pts, extra) => {
+    const L = mode === 'geographic' ? { points: pts, origin: null, originSet: false } : localize(pts, { origin: project.meta.projOrigin, hasObjects: project.objects.length > 0 });
+    const o = createTerrain(project.newId(), L.points), errs = validateObject(o); if (errs.length) throw new Error(errs[0]);
+    history.record(); project.add(o); if (L.originSet) project.meta.projOrigin = L.origin; project.changed(); selection.set(o.id);
+    return [`Imported terrain with ${L.points.length} point(s) (${mode} coordinates; values read as ${project.meta.units === 'ft' ? 'feet' : 'metres'}).`, L.originSet ? `Large coordinates: the local origin was set to E ${L.origin.x}, N ${L.origin.y} (m).` : '', ...extra].filter(Boolean);
+  };
+  const kU = () => project.meta.units === 'ft' ? 0.3048 : 1;
+  const importTerrain = t => { const r = parseTerrainCsv(t, { mode, origin: origin(), k: kU() }); return addTerrain(r.points, [...r.warnings, ...r.skipped.map(x => 'Skipped: ' + x)]); };
+  const importAsc = t => { const r = parseAscGrid(t, { mode, origin: origin(), k: kU() });
+    return addTerrain(r.points, [`Grid ${r.ncols} × ${r.nrows} cells, cell size ${r.cellsize}${r.step > 1 ? `; thinned to every ${r.step}th cell to stay within the point limit (resolution is reduced)` : ''}.`, r.nodata ? `${r.nodata} no-data cell(s) were left out; the surface bridges the gaps.` : '', r.bad ? `${r.bad} non-numeric value(s) were skipped.` : '']); };
   const importLx = t => { const r = importLandXml(t, { lineAs, newId: () => project.newId(), origin: project.meta.projOrigin, hasObjects: project.objects.length > 0 });
     if (r.objects.length) { history.record(); r.objects.forEach(o => project.objects.push(o)); if (r.originSet) project.meta.projOrigin = r.origin; project.changed(); }
     const nt = r.objects.filter(o => o.type === 'terrain').length;
@@ -60,8 +69,8 @@ export function initIoPanel(root, { project, selection, history, bus, sm }) {
       mk('div', { className: 'btns' }, [btn('Export GeoJSON', () => { const r = toGeoJSON(project, { mode, origin: origin() }); download(name() + '.geojson', JSON.stringify(r.geojson, null, 2), 'application/geo+json');
         return [`Exported ${r.geojson.features.length} feature(s) (${mode} coordinates).`, r.geojson.evlab.note, ...r.skipped.map(x => 'Not exported: ' + x)]; }), btn('Import GeoJSON', () => { pick('.geojson,.json,application/geo+json', importGeo); })]),
       mk('p', { className: 'muted', textContent: 'Geographic mode uses a simple local approximation around your origin (small areas only, not a projected CRS, not survey-grade). Only Point and LineString import; other geometry is listed as not imported.' }),
-      ...section('Terrain', btn('Import terrain points (CSV: x, y, z)', () => { pick('.csv,text/csv', importTerrain); })),
-      mk('p', { className: 'muted', textContent: 'Header optional. Up to 5000 points. Uses the Coordinates choice above (geographic needs the project origin). Elevations, and local x and y, are read in the project display units. Rows that are not numbers are skipped and listed.' }),
+      ...section('Terrain', btn('Import terrain points (CSV: x, y, z)', () => { pick('.csv,text/csv', importTerrain); }), btn('Import elevation grid (ASC)', () => { pick('.asc,.txt,text/plain', importAsc); })),
+      mk('p', { className: 'muted', textContent: 'Header optional. Up to 10000 points. ESRI ASCII grids (.asc) are thinned to fit; GeoTIFF is not supported yet. Large projected coordinates are re-centered in an empty project. Uses the Coordinates choice above (geographic needs the project origin). Elevations, and local x and y, are read in the project display units. Rows that are not numbers are skipped and listed.' }),
       ...section('LandXML 1.2 (terrain surfaces and alignments)', btn('Export LandXML', () => { const r = exportLandXml(project); download(name() + '.xml', r.xml, 'application/xml'); return [`Exported ${r.counts.surfaces} surface(s) and ${r.counts.alignments} alignment(s), in metres${project.meta.projOrigin ? ', with the projected origin added back' : ''}.`, ...r.skipped.map(x => 'Not exported: ' + x)]; }),
         btn('Import LandXML', () => { pick('.xml,.landxml,text/xml', importLx); })),
       mk('p', { className: 'muted', textContent: 'Supported: TIN surfaces (rebuilt as a Delaunay TIN from the points) and Line/Curve alignments with PVI profiles. Spirals, pipe networks and other content are listed as not imported. Large projected coordinates are re-centered in a new project.' }),

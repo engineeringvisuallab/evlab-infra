@@ -4,7 +4,7 @@
 - Roads and watercourses → `Alignment` with `Line` and circular `Curve` elements (with PI) and a `Profile/ProfAlign` made of PVIs at the control points.
 - Not exported (listed after export): pipes, nodes, bridges, culverts, blocks.
 **Import**
-- TIN surfaces → terrain. The faces in the file are ignored and the surface is rebuilt as a Delaunay TIN from the points (limit 5000 points per surface).
+- TIN surfaces → terrain. The faces in the file are ignored and the surface is rebuilt as a Delaunay TIN from the points (limit 10000 points per surface).
 - Alignments made of `Line` and `Curve` elements → roads (or watercourses; choose "Import lines as"). A curve becomes a control point (its PI) with a radius. The first `ProfAlign` gives elevations; vertical curves are treated as straight grades between PVIs.
 - Not supported (listed as not imported): spirals, irregular lines, chains, curves that follow each other directly, GridSurface, pipe networks, parcels, cross-sections.
 - Units come from the `Units` element (meter, foot, US survey foot, inch, mm, cm, km, mile). Without it, metres are assumed.

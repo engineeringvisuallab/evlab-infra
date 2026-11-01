@@ -1,11 +1,12 @@
 // Plan-view (2D) ASCII DXF, R12 style: LINE and CIRCLE entities, Z written as 0. NOT DWG. Elevations are not exported.
+import { contourSegments } from '../models/contours.js';
 import { terrainMesh } from '../models/terrain.js';
 import { alignment } from '../models/alignment.js';
 import { roadEdges } from '../models/road.js';
-const LAYERS = { ROAD_CENTERLINE: 2, ROAD_EDGE: 7, WATERCOURSE: 5, PIPE: 4, NODE: 3, BRIDGE: 6, CULVERT: 8, BLOCK: 1, TERRAIN_TIN: 9 };
+const LAYERS = { ROAD_CENTERLINE: 2, ROAD_EDGE: 7, WATERCOURSE: 5, PIPE: 4, NODE: 3, BRIDGE: 6, CULVERT: 8, BLOCK: 1, TERRAIN_TIN: 9, CONTOURS: 30 };
 export function toDxf(project) {
   const e = [], counts = {}, skipped = [], f = v => (+v).toFixed(6);
-  const line = (l, a, b) => { counts[l] = (counts[l] || 0) + 1; e.push('0', 'LINE', '8', l, '10', f(a[0]), '20', f(a[1]), '30', '0', '11', f(b[0]), '21', f(b[1]), '31', '0'); };
+  const line = (l, a, b, z = 0) => { counts[l] = (counts[l] || 0) + 1; e.push('0', 'LINE', '8', l, '10', f(a[0]), '20', f(a[1]), '30', f(z), '11', f(b[0]), '21', f(b[1]), '31', f(z)); };
   const poly = (l, pts) => { for (let i = 0; i < pts.length - 1; i++) line(l, pts[i], pts[i + 1]); };
   const rect = (l, o, len, wid) => { const a = o.rotation * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
     const P = [[-len / 2, -wid / 2], [len / 2, -wid / 2], [len / 2, wid / 2], [-len / 2, wid / 2]].map(([x, y]) => [o.x + x * c - y * s, o.y + x * s + y * c]); poly(l, [...P, P[0]]); };
@@ -17,7 +18,8 @@ export function toDxf(project) {
     else if (o.type === 'bridge') rect('BRIDGE', o, o.length, o.width);
     else if (o.type === 'culvert') rect('CULVERT', o, o.length, o.barrels * o.barrelWidth + (o.barrels + 1) * o.wallThickness);
     else if (o.type === 'terrain') { const { idx } = terrainMesh(o), seen = new Set(), edge = (a, b) => { const k = a < b ? a + '_' + b : b + '_' + a; if (seen.has(k)) return; seen.add(k); line('TERRAIN_TIN', [o.points[a].x, o.points[a].y], [o.points[b].x, o.points[b].y]); };
-      for (let i = 0; i < idx.length; i += 3) { edge(idx[i], idx[i + 1]); edge(idx[i + 1], idx[i + 2]); edge(idx[i + 2], idx[i]); } }
+      for (let i = 0; i < idx.length; i += 3) { edge(idx[i], idx[i + 1]); edge(idx[i + 1], idx[i + 2]); edge(idx[i + 2], idx[i]); }
+      if (o.contourInterval) contourSegments(o, o.contourInterval).segs.forEach(s => line('CONTOURS', [s[0], s[1]], [s[2], s[3]], s[4] * o.contourInterval)); }
     else if (o.type === 'block') rect('BLOCK', o, o.width, o.length);
     else skipped.push(`${o.id}: type ${o.type} not exported`);
   }

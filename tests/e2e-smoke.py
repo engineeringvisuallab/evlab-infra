@@ -99,6 +99,17 @@ with sync_playwright() as p:
     with with_fc as fc: page.click('#iopanel button:has-text("Import LandXML")')
     fc.value.set_files(lxp); page.wait_for_function(f'evlab.project.objects.length>{before}'); ok(objs() == before + 3, 'Import LandXML adds the terrain and two alignments')
     page.click('#iopanel button:has-text("Close")')
+    # ASC grid, contours and slope shading
+    ascp = os.path.join(tempfile.gettempdir(), 'evlab-grid.asc'); rows = [' '.join(str(round(5 + 0.1 * (c * 4) + 3 * __import__('math').sin(r / 4), 3)) for c in range(25)) for r in range(25)]
+    open(ascp, 'w').write('ncols 25\nnrows 25\nxllcorner -50\nyllcorner -50\ncellsize 4\nNODATA_value -9999\n' + '\n'.join(rows))
+    page.click('[data-action=io]')
+    with page.expect_file_chooser() as fc: page.click('#iopanel button:has-text("Import elevation grid")')
+    fc.value.set_files(ascp); page.wait_for_function('evlab.project.objects.filter(o=>o.type==="terrain").length>=3'); page.click('#iopanel button:has-text("Close")')
+    ok(ev('evlab.project.objects.filter(o=>o.type==="terrain").at(-1).points.length') == 625, 'ASC grid imports 625 points')
+    sh = page.locator('#properties label.row', has_text='Shading').locator('select'); sh.select_option('Slope'); page.wait_for_timeout(150)
+    ci = page.locator('#properties label.row', has_text='Contour interval').locator('input'); ci.fill('1'); ci.press('Tab'); page.wait_for_timeout(150)
+    ok(ev('evlab.project.objects.filter(o=>o.type==="terrain").at(-1).shading') == 'Slope' and ev('evlab.project.objects.filter(o=>o.type==="terrain").at(-1).contourInterval') == 1, 'shading and contour interval can be set')
+    ok(ev('(async()=>{const m=await import("./js/models/contours.js");return m.contourSegments(evlab.project.objects.filter(o=>o.type==="terrain").at(-1),1).segs.length})()') > 0 and 'Slope (area-weighted' in page.inner_text('#properties'), 'contours exist and slope statistics are shown')
     # display units: feet
     ev('evlab.selection.set(null)'); page.select_option('#properties select', 'ft'); page.wait_for_timeout(200)
     ok(ev('evlab.project.meta.units') == 'ft' and 'Units: ft' in page.inner_text('#st-units') and 'ft' in page.inner_text('#st-tool'), 'switching to feet updates units and snap label')

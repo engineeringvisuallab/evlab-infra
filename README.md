@@ -1,6 +1,6 @@
 # EVLab Infra
 **Engineering Visual Lab (EVLab) · Engineering • Innovation • Learning**
-A free, open-source, browser-based tool for preliminary infrastructure planning: roads, water pipelines, bridges, culverts and watercourses in 3D. It has no server, no API keys and no build step. Version 0.13.0.
+A free, open-source, browser-based tool for preliminary infrastructure planning: roads, water pipelines, bridges, culverts and watercourses in 3D. It has no server, no API keys and no build step. Version 0.14.0.
 
 > **Engineering disclaimer:** EVLab Infra produces preliminary visualization and geometric quantities only. It is not a substitute for verified engineering design. Conceptual bridges and culverts are not construction-ready or structurally certified, and no hydraulic, structural or geotechnical analysis is performed.
 
@@ -25,7 +25,7 @@ Toolbar: **Select** (click, drag to move) · **Draw road / pipe / watercourse** 
 **Implemented**
 - 3D viewport: orbit/pan/zoom, Z-up, grid, axes, lighting and shadows, perspective/orthographic, fit and reset, layer visibility
 - Select, move, edit with validation, delete, grid snap, undo/redo, JSON save/open, autosave with warning
-- Terrain: import x, y, z points (CSV) as a TIN surface with elevation tint, terrain elevation under the cursor, set road elevations and node ground levels from terrain
+- Terrain: import x, y, z points (CSV) or ESRI ASCII grids (.asc) as a TIN surface with elevation, slope or plain shading, contour lines (also exported to DXF), slope statistics, terrain elevation under the cursor, set road elevations and node ground levels from terrain
 - Roads: control points (drag gold handles, double-click to insert a point, or use the table), horizontal curves (circular arc radius at interior points), cross-section view with terrain ground line, 3D surface, edges, centerline, chainage markers, profile view
 - Water network: junction/valve/pump/reservoir nodes, pipes with length from coordinates, attribute warnings
 - Conceptual bridges, culverts and watercourses; crossing inventory with entered clearance requirements, assumptions and checklist
@@ -40,13 +40,13 @@ Toolbar: **Select** (click, drag to move) · **Draw road / pipe / watercourse** 
 - GeoJSON/CSV import cover Point and LineString and a few attributes only. Roads are straight segments (no curves, superelevation or design standards).
 
 **Planned / not implemented**
-- Terrain from DEM rasters (GeoTIFF/ASC), breaklines, contours, cut/fill, aerial imagery, 3D Tiles, online map services (see `docs/GIS.md`), DWG, rotate handles in the viewport, hydraulic analysis
+- GeoTIFF rasters, breaklines, cut/fill, aerial imagery, 3D Tiles, online map services (see `docs/GIS.md`), DWG, rotate handles in the viewport, hydraulic analysis
 
 ## Known limitations
 - LandXML covers a subset only (no spirals, pipe networks, parcels or cross-sections). Faces of imported surfaces are rebuilt as a Delaunay TIN.
 - Display units (project settings) affect the screen, reports and terrain CSV import. Inventory CSV, GeoJSON, DXF and STL are always metric. The grid cell is 1 m or 1 ft.
 - Horizontal curves are simple circular arcs (no spirals, superelevation or design standards). A radius that is too large for the adjacent segments is reduced and flagged. Cross-sections use a flat cross-fall with no side slopes or earthwork volumes.
-- Terrain is a TIN from up to 5000 points with linear interpolation. No breaklines, contours or cut/fill. Quality depends on your data; not survey-grade.
+- Terrain is a TIN from up to 10000 points with linear interpolation. ASC grids larger than that are thinned (every n-th cell), so resolution drops. No breaklines or cut/fill. GeoTIFF is not supported yet. Quality depends on your data; not survey-grade.
 - Roads are preliminary geometry with simple edge offsets. Chainage is measured along the plan view. Default road width/thickness, pipe diameter and bridge/culvert sizes are placeholders to edit.
 - Pipes are geometry only. Crossings are plan-view intersections with entered levels: potential interactions, never confirmed clashes.
 - Geographic mode is a tangent-plane approximation for small areas. It is not a projected CRS and not survey-grade. Do not use map screenshots as terrain.

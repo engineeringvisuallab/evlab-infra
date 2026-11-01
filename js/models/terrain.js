@@ -1,9 +1,13 @@
 // Terrain = triangulated irregular network (TIN) through user-supplied x, y, z points, with linear interpolation.
 // Accuracy depends entirely on the input data. No breaklines, no raster DEM, not survey-grade.
-import { checkSchema } from './schema.js';
-export const MAX_POINTS = 5000;
-export const schema = [{ k: 'name', l: 'Name', t: 'text' }, { k: 'source', l: 'Data source / assumptions', t: 'textarea', nullable: true }];
-export const createTerrain = (id, points) => ({ id, name: 'Terrain', category: 'terrain', type: 'terrain', source: '', points });
+import { N, checkSchema } from './schema.js';
+export const MAX_POINTS = 10000;
+export const SHADING = ['Elevation', 'Slope', 'Plain'];
+export const schema = [{ k: 'name', l: 'Name', t: 'text' }, { k: 'shading', l: 'Shading', t: 'select', opts: SHADING }, N('contourInterval', 'Contour interval (m)', 0.01, 1000, { nullable: true }), { k: 'source', l: 'Data source / assumptions', t: 'textarea', nullable: true }];
+export const createTerrain = (id, points) => ({ id, name: 'Terrain', category: 'terrain', type: 'terrain', shading: 'Elevation', contourInterval: null, source: '', points });
+// Files from older versions have no shading/contour fields.
+export const normalize = o => { if (o.shading === undefined) o.shading = 'Elevation'; if (o.contourInterval === undefined) o.contourInterval = null; return o; };
+export function triangleSlopeDeg(a, b, c) { const ux = b.x - a.x, uy = b.y - a.y, uz = b.z - a.z, vx = c.x - a.x, vy = c.y - a.y, vz = c.z - a.z, nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx, l = Math.hypot(nx, ny, nz) || 1; return Math.acos(Math.min(1, Math.abs(nz) / l)) * 180 / Math.PI; }
 // Bowyer-Watson Delaunay triangulation. Returns triangle index triples (counter-clockwise) into pts and the number of duplicate points skipped.
 export function triangulate(pts) {
   const n = pts.length; if (n < 3) return { idx: [], dupes: 0 };
@@ -41,9 +45,10 @@ export function terrainMesh(o) {
   let r = cache.get(o.points);
   if (!r) {
     const { idx, dupes } = triangulate(o.points); let area = 0, minZ = Infinity, maxZ = -Infinity; const P = o.points;
-    for (let i = 0; i < idx.length; i += 3) { const a = P[idx[i]], b = P[idx[i + 1]], c = P[idx[i + 2]]; area += ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / 2; }
+    let maxSlope = 0, slopeSum = 0;
+    for (let i = 0; i < idx.length; i += 3) { const a = P[idx[i]], b = P[idx[i + 1]], c = P[idx[i + 2]], ar = ((b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)) / 2, sl = triangleSlopeDeg(a, b, c); area += ar; slopeSum += sl * ar; maxSlope = Math.max(maxSlope, sl); }
     for (const p of P) { minZ = Math.min(minZ, p.z); maxZ = Math.max(maxZ, p.z); }
-    r = { idx, dupes, stats: { triangles: idx.length / 3, area, minZ, maxZ } }; cache.set(o.points, r);
+    r = { idx, dupes, stats: { triangles: idx.length / 3, area, minZ, maxZ, maxSlopeDeg: maxSlope, meanSlopeDeg: area ? slopeSum / area : 0 } }; cache.set(o.points, r);
   }
   return r;
 }
@@ -58,7 +63,7 @@ export function elevationAt(o, x, y) {
   return null;
 }
 export function validate(o) {
-  const e = checkSchema(schema, o);
+  const e = checkSchema(schema, normalize({ ...o }));
   if (!Array.isArray(o.points) || o.points.length < 3) { e.push('Terrain needs at least 3 points'); return e; }
   if (o.points.length > MAX_POINTS) { e.push(`Terrain has ${o.points.length} points; the limit is ${MAX_POINTS}`); return e; }
   o.points.forEach((p, i) => { for (const k of 'xyz') if (!p || !Number.isFinite(p[k]) || Math.abs(p[k]) > (k === 'z' ? 1e4 : 1e6)) e.push(`Point ${i + 1}: ${k.toUpperCase()} is invalid`); });

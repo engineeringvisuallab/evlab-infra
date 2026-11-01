@@ -13,6 +13,7 @@ export const TYPES = {
   watercourse: { schema: wc.schema, validate: wc.validate }, terrain: { schema: terrain.schema, validate: terrain.validate },
   node: { schema: nodeSchema, validate: validateNode }, pipe: { schema: pipeSchema, validate: validatePipe }
 };
+export const normalize = o => { if (o && o.type === 'terrain') terrain.normalize(o); return o; };
 export const validateObject = o => { const t = o && TYPES[o.type]; return t ? t.validate(o) : [`unsupported type "${o && o.type}"`]; };
 // Non-fatal warnings about missing or inconsistent attributes
 export function collectWarnings(project) {

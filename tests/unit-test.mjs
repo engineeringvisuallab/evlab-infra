@@ -162,4 +162,25 @@ const ib = importLandXml(imp, { lineAs: 'road', newId: idg, origin: null, hasObj
 assert.ok(Math.abs(ib.objects[1].points[0].z - 1.524) < 1e-6 && Math.abs(ib.objects[1].points[1].z - 4.572) < 1e-6 && Math.abs(ib.objects[1].points[1].x - 30.48) < 1e-6); assert.equal(ib.skipped.length, 2);
 assert.throws(() => importLandXml('<Foo/>', { newId: idg }), /not a LandXML/); assert.throws(() => exportLandXml(new Project(bus)), /Nothing to export/);
 assert.equal(parse(serialize(lp)).meta.projOrigin.x, 500000); const badO = JSON.parse(serialize(lp)); badO.meta.projOrigin = { x: 'a', y: 1 }; assert.throws(() => parse(JSON.stringify(badO)), /origin/);
+// Raster grid, contours, slope, migration
+import { parseAscGrid } from '../js/io/asc-grid.js';
+import { contourSegments } from '../js/models/contours.js';
+import { localize } from '../js/io/origin.js';
+const asc = (n, head = 'xllcorner 1000\nyllcorner 2000') => `ncols ${n}\nnrows ${n}\n${head}\ncellsize 10\nNODATA_value -9999\n` + Array.from({ length: n }, () => Array.from({ length: n }, (_, c) => String((c * 10 + 5) * 0.1)).join(' ')).join('\n');
+const ag = parseAscGrid(asc(5), { mode: 'local' }); assert.equal(ag.points.length, 25); assert.ok(Math.abs(ag.points[0].x - 1005) < 1e-9 && Math.abs(ag.points[0].y - 2045) < 1e-9 && Math.abs(ag.points[0].z - 0.5) < 1e-9 && Math.abs(ag.points[24].y - 2005) < 1e-9);
+assert.equal(parseAscGrid(asc(30), { mode: 'local', maxPoints: 100 }).step, 3); assert.equal(parseAscGrid(asc(30), { mode: 'local', maxPoints: 100 }).points.length, 100);
+assert.ok(Math.abs(parseAscGrid(asc(5, 'xllcenter 1000\nyllcenter 2000'), { mode: 'local' }).points[0].x - 1000) < 1e-9); assert.ok(Math.abs(parseAscGrid(asc(5), { mode: 'local', k: 0.3048 }).points[0].x - 1005 * 0.3048) < 1e-9);
+assert.equal(parseAscGrid(asc(5).replace('0.5 ', '-9999 '), { mode: 'local' }).nodata, 1);
+assert.throws(() => parseAscGrid('ncols 2\nnrows 2\ncellsize 1\n1 2 3 4', { mode: 'local' }), /xllcorner|header/i); assert.throws(() => parseAscGrid(asc(5) + ' 7', { mode: 'local' }), /Expected 25/); assert.throws(() => parseAscGrid(asc(5), { mode: 'geographic' }), /origin/i);
+const gg2 = parseAscGrid(asc(5, 'xllcorner 90.4\nyllcorner 23.8').replace('cellsize 10', 'cellsize 0.001'), { mode: 'geographic', origin: { lon: 90.4, lat: 23.8 } }); assert.ok(Math.abs(gg2.points[0].x - 0.5 * 101.9) < 3);
+const lz = localize([{ x: 500100, y: 4000200, z: 1 }, { x: 500300, y: 4000400, z: 2 }], { origin: null, hasObjects: false }); assert.equal(lz.originSet, true); assert.deepEqual([lz.origin.x, lz.origin.y], [500200, 4000300]); assert.equal(lz.points[0].x, -100);
+assert.throws(() => localize([{ x: 500100, y: 4000200, z: 1 }], { origin: null, hasObjects: true }), /new, empty project/); assert.equal(localize([{ x: 5, y: 6, z: 1 }], {}).originSet, false);
+const big40 = createTerrain('B', parseAscGrid(asc(40), { mode: 'local' }).points); assert.ok(Math.abs(terrainMesh(big40).stats.area - (39 * 10) ** 2) < 1e-6);
+const planeT = createTerrain('P', Array.from({ length: 25 }, (_, q) => ({ x: (q % 5) * 10, y: Math.floor(q / 5) * 10, z: 0.1 * (q % 5) * 10 })));
+const cs = contourSegments(planeT, 1); assert.equal(cs.levels, 5); assert.ok(cs.segs.every(s => Math.abs(s[0] - s[4] * 10) < 1e-9 && Math.abs(s[2] - s[4] * 10) < 1e-9)); assert.ok(Math.abs(cs.segs.reduce((a, s) => a + Math.hypot(s[2] - s[0], s[3] - s[1]), 0) - 160) < 1e-9);
+assert.equal(contourSegments(planeT, 0.001).tooMany, true); assert.equal(contourSegments(planeT, 0).segs.length, 0);
+assert.ok(Math.abs(terrainMesh(planeT).stats.maxSlopeDeg - Math.atan(0.1) * 180 / Math.PI) < 1e-9 && Math.abs(terrainMesh(planeT).stats.meanSlopeDeg - Math.atan(0.1) * 180 / Math.PI) < 1e-9);
+const oldT = JSON.parse(serialize(tp)); delete oldT.objects[0].shading; delete oldT.objects[0].contourInterval; const pOld = parse(JSON.stringify(oldT)); assert.equal(pOld.objects[0].shading, 'Elevation'); assert.equal(pOld.objects[0].contourInterval, null);
+const badSh = JSON.parse(serialize(tp)); badSh.objects[0].shading = 'Rainbow'; assert.throws(() => parse(JSON.stringify(badSh)), /Shading/);
+const cp2 = new Project(bus); planeT.contourInterval = 1; cp2.add(planeT); assert.ok(toDxf(cp2).counts.CONTOURS > 0); assert.ok(toDxf(cp2).text.includes('CONTOURS'));
 console.log('All unit tests passed');

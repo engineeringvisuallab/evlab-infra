@@ -1,4 +1,4 @@
-import { validateObject } from '../models/registry.js';
+import { validateObject, normalize } from '../models/registry.js';
 import { newMeta } from './project.js';
 export const FORMAT = 'evlab-infra-project', SCHEMA = 1;
 export const serialize = p => JSON.stringify({ format: FORMAT, schema: SCHEMA, ...JSON.parse(p.snapshot()) }, null, 2);
@@ -9,7 +9,7 @@ export function parse(text) {
   if (!Array.isArray(d.objects)) throw new Error('Project file has no objects list.');
   const byId = new Map();
   d.objects.forEach((o, i) => {
-    const errs = validateObject(o);
+    normalize(o); const errs = validateObject(o);
     if (errs.length) throw new Error(`Object ${i + 1}${o && o.id ? ' (' + o.id + ')' : ''}: ${errs[0]}${/unsupported/.test(errs[0]) ? '. Nothing was loaded, so no data is lost.' : ''}`);
     if (byId.has(o.id)) throw new Error(`Duplicate object ID ${o.id}.`); byId.set(o.id, o);
   });
