@@ -5,6 +5,7 @@ import * as culvert from './culvert.js';
 import * as wc from './watercourse.js';
 import * as terrain from './terrain.js';
 import { alignment } from './alignment.js';
+import { bendRadiusProblem } from './fittings.js';
 import { nodeSchema, pipeSchema, validateNode, validatePipe, pipeLength } from './pipe.js';
 export const GRADE_HEURISTIC_PCT = 12;
 export const TYPES = {
@@ -26,6 +27,7 @@ export function collectWarnings(project) {
       if (o.invert != null && o.groundLevel != null && o.invert > o.groundLevel) add(o, 'invert is above ground level');
       if (!o.assetId) add(o, 'asset ID missing');
       if (!used.has(o.id)) add(o, 'node has no connected pipes');
+      const bp = bendRadiusProblem(project, o); if (bp) add(o, `a ${bp.angleDeg.toFixed(1)}° bend with the allowable radius ${bp.R} m needs ${bp.T.toFixed(2)} m of straight pipe each side, but the shorter pipe gives only ${bp.room.toFixed(2)} m`);
     } else if (o.type === 'bridge') {
       const u = o.z - o.deckThickness;
       if (o.groundLevel == null) add(o, 'ground level not set: supports not drawn'); else if (u - o.groundLevel <= 0.01) add(o, 'ground level is at or above the deck underside');
@@ -34,6 +36,10 @@ export function collectWarnings(project) {
       const s = road.roadStats(o.points);
       alignment(o.points).curves.filter(c => c.clamped).forEach(c => add(o, `curve at point ${c.index + 1}: radius reduced from ${c.requested} m to ${c.radius.toFixed(2)} m to fit the adjacent segments`));
       if (o.points.some((p, i) => p.r > 0 && (i === 0 || i === o.points.length - 1))) add(o, 'a curve radius on an end point is ignored');
+      const mr = project.meta.minRadius; if (mr > 0) alignment(o.points).curves.filter(c => c.radius < mr - 1e-6).forEach(c => add(o, `curve at point ${c.index + 1}: radius ${c.radius.toFixed(1)} m is below your minimum of ${mr} m`));
+      if (o.type === 'road') o.points.forEach((p, i) => { if (i === 0 || i === o.points.length - 1) return; const a = o.points[i - 1], b = o.points[i + 1], ux = p.x - a.x, uy = p.y - a.y, vx = b.x - p.x, vy = b.y - p.y;
+        if (Math.hypot(ux, uy) < 1e-9 || Math.hypot(vx, vy) < 1e-9) return; const d = Math.atan2(Math.abs(ux * vy - uy * vx), ux * vx + uy * vy) * 180 / Math.PI;
+        if (d > 2 && !(p.r > 0)) add(o, `sharp corner of ${d.toFixed(1)}° at point ${i + 1}: no curve radius (use "Round all corners")`); });
       if (o.points.some((p, i) => i && Math.hypot(p.x - o.points[i - 1].x, p.y - o.points[i - 1].y) < 1e-6)) add(o, 'duplicate consecutive control points (zero-length segment)');
       if (o.type === 'road' && s.maxGradePct > GRADE_HEURISTIC_PCT) add(o, `max segment grade ${s.maxGradePct.toFixed(1)}% exceeds ${GRADE_HEURISTIC_PCT}% (simple heuristic, not a design standard)`);
     } else if (o.type === 'terrain') {

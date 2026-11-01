@@ -22,6 +22,7 @@ export function parse(text) {
   for (const [k, lim] of [['originLon', 180], ['originLat', 90]]) if (geo[k] !== null && (!Number.isFinite(geo[k]) || Math.abs(geo[k]) > lim)) throw new Error(`Geographic origin in the file is invalid (${k}).`);
   const projOrigin = d.meta && d.meta.projOrigin !== undefined ? d.meta.projOrigin : null;
   if (projOrigin !== null && !(projOrigin && Number.isFinite(projOrigin.x) && Number.isFinite(projOrigin.y) && Math.abs(projOrigin.x) < 1e9 && Math.abs(projOrigin.y) < 1e9)) throw new Error('Projected origin in the file is invalid.');
+  for (const k of ['defaultRadius', 'minRadius']) { const v = d.meta && d.meta[k]; if (v !== undefined && v !== null && !(Number.isFinite(v) && v >= 1 && v <= 1e5)) throw new Error(`Design setting ${k} in the file is invalid.`); }
   const units = d.meta && d.meta.units !== undefined ? d.meta.units : 'm';
   if (units !== 'm' && units !== 'ft') throw new Error(`Unsupported display units "${units}" (use m or ft).`);
   const nums = d.objects.map(o => +(/^OBJ-(\d+)$/.exec(o.id) || [0, 0])[1]);

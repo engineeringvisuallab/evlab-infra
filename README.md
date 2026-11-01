@@ -1,6 +1,6 @@
 # EVLab Infra
 **Engineering Visual Lab (EVLab) · Engineering • Innovation • Learning**
-A free, open-source, browser-based tool for preliminary infrastructure planning: roads, water pipelines, bridges, culverts and watercourses in 3D. It has no server, no API keys and no build step. Version 0.14.0.
+A free, open-source, browser-based tool for preliminary infrastructure planning: roads, water pipelines, bridges, culverts and watercourses in 3D. It has no server, no API keys and no build step. Version 0.15.0.
 
 > **Engineering disclaimer:** EVLab Infra produces preliminary visualization and geometric quantities only. It is not a substitute for verified engineering design. Conceptual bridges and culverts are not construction-ready or structurally certified, and no hydraulic, structural or geotechnical analysis is performed.
 
@@ -26,7 +26,8 @@ Toolbar: **Select** (click, drag to move) · **Draw road / pipe / watercourse** 
 - 3D viewport: orbit/pan/zoom, Z-up, grid, axes, lighting and shadows, perspective/orthographic, fit and reset, layer visibility
 - Select, move, edit with validation, delete, grid snap, undo/redo, JSON save/open, autosave with warning
 - Terrain: import x, y, z points (CSV) or ESRI ASCII grids (.asc) as a TIN surface with elevation, slope or plain shading, contour lines (also exported to DXF), slope statistics, terrain elevation under the cursor, set road elevations and node ground levels from terrain
-- Roads: control points (drag gold handles, double-click to insert a point, or use the table), horizontal curves (circular arc radius at interior points), cross-section view with terrain ground line, 3D surface, edges, centerline, chainage markers, profile view
+- Roads: new corners get the default curve radius automatically (preview shows the bend), "Round all corners" / "Remove all curves" buttons, sharp-corner and minimum-radius warnings, control points (drag gold handles, double-click to insert a point, or use the table), horizontal curves (circular arc radius at interior points), cross-section view with terrain ground line, 3D surface, edges, centerline, chainage markers, profile view
+- Pipe fittings derived automatically from the network (bends with 3D angle and nearest standard size, tees, crosses, dead ends, reducers) with an allowable bend-radius check and a fittings take-off in the quantity report
 - Water network: junction/valve/pump/reservoir nodes, pipes with length from coordinates, attribute warnings
 - Conceptual bridges, culverts and watercourses; crossing inventory with entered clearance requirements, assumptions and checklist
 - 3D distance measurement; quantity report (CSV); printable HTML report; inventory CSV export/import; GeoJSON export/import; DXF (plan) and STL export
@@ -43,6 +44,7 @@ Toolbar: **Select** (click, drag to move) · **Draw road / pipe / watercourse** 
 - GeoTIFF rasters, breaklines, cut/fill, aerial imagery, 3D Tiles, online map services (see `docs/GIS.md`), DWG, rotate handles in the viewport, hydraulic analysis
 
 ## Known limitations
+- Pipes run straight between nodes; a change of direction is shown as a fitting at the node (bend, tee, ...), not as a curved pipe. Fittings are derived, not stored, and are a preliminary take-off, not a fitting schedule. The default road curve radius (30 m) is a placeholder: set it from your design standard in the project settings.
 - LandXML covers a subset only (no spirals, pipe networks, parcels or cross-sections). Faces of imported surfaces are rebuilt as a Delaunay TIN.
 - Display units (project settings) affect the screen, reports and terrain CSV import. Inventory CSV, GeoJSON, DXF and STL are always metric. The grid cell is 1 m or 1 ft.
 - Horizontal curves are simple circular arcs (no spirals, superelevation or design standards). A radius that is too large for the adjacent segments is reduced and flagged. Cross-sections use a flat cross-fall with no side slopes or earthwork volumes.

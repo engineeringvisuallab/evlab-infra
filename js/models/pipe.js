@@ -7,7 +7,7 @@ export const nodeSchema = [{ k: 'name', l: 'Name', t: 'text' }, { k: 'nodeType',
   N('x', 'X (m)', -1e6, 1e6), N('y', 'Y (m)', -1e6, 1e6), N('groundLevel', 'Ground level (m)', -1e4, 1e4, { nullable: true }),
   N('invert', 'Invert level (m)', -1e4, 1e4, { nullable: true }), asset];
 export const pipeSchema = [{ k: 'name', l: 'Name', t: 'text' }, N('diameter', 'Diameter (mm)', 10, 5000),
-  { k: 'material', l: 'Material', t: 'select', opts: PIPE_MATERIALS }, asset];
+  { k: 'material', l: 'Material', t: 'select', opts: PIPE_MATERIALS }, N('minBendRadius', 'Allowable bend radius (m)', 0.1, 10000, { nullable: true }), asset];
 export const createNode = (id, nodeType, x, y) => ({ id, name: nodeType, category: 'junctions', type: 'node', nodeType, x, y, groundLevel: null, invert: null, assetId: '' });
 export const createPipe = (id, fromId, toId) => ({ id, name: 'Pipe', category: 'pipelines', type: 'pipe', fromId, toId, diameter: 200, material: 'Unspecified', assetId: '' });
 export const nodeZ = n => n.invert ?? n.groundLevel ?? 0; // elevation used for drawing and length

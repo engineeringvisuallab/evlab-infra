@@ -183,4 +183,22 @@ assert.ok(Math.abs(terrainMesh(planeT).stats.maxSlopeDeg - Math.atan(0.1) * 180 
 const oldT = JSON.parse(serialize(tp)); delete oldT.objects[0].shading; delete oldT.objects[0].contourInterval; const pOld = parse(JSON.stringify(oldT)); assert.equal(pOld.objects[0].shading, 'Elevation'); assert.equal(pOld.objects[0].contourInterval, null);
 const badSh = JSON.parse(serialize(tp)); badSh.objects[0].shading = 'Rainbow'; assert.throws(() => parse(JSON.stringify(badSh)), /Shading/);
 const cp2 = new Project(bus); planeT.contourInterval = 1; cp2.add(planeT); assert.ok(toDxf(cp2).counts.CONTOURS > 0); assert.ok(toDxf(cp2).text.includes('CONTOURS'));
+// Pipe fittings and automatic road bends
+import { fittingAt, allFittings, bendRadiusProblem } from '../js/models/fittings.js';
+const net = (pts, dias = []) => { const q = new Project(bus); pts.forEach((p, i) => { const n = createNode('N' + i, 'Junction', p[0], p[1]); if (p[2] !== undefined) n.invert = p[2]; q.add(n); }); for (let i = 0; i < pts.length - 1; i++) { const pp = createPipe('P' + i, 'N' + i, 'N' + (i + 1)); if (dias[i]) pp.diameter = dias[i]; q.add(pp); } return q; };
+const b90 = net([[0, 0], [100, 0], [100, 100]]); const f90 = fittingAt(b90, b90.get('N1')); assert.equal(f90.kind, 'Bend'); assert.ok(Math.abs(f90.angleDeg - 90) < 1e-9); assert.equal(f90.standard, 90); assert.equal(f90.label, '90° bend');
+assert.equal(fittingAt(b90, b90.get('N0')).kind, 'Dead end'); assert.equal(allFittings(b90).length, 3);
+const strt = net([[0, 0], [50, 0], [100, 0]]); assert.equal(fittingAt(strt, strt.get('N1')), null); // straight joint: no fitting
+const r30 = net([[0, 0], [100, 0], [100 + 100 * Math.cos(Math.PI / 6), 100 * Math.sin(Math.PI / 6)]]); const f30 = fittingAt(r30, r30.get('N1')); assert.ok(Math.abs(f30.angleDeg - 30) < 1e-9 && f30.standard === null && /non-standard/.test(f30.label));
+const r45 = net([[0, 0], [100, 0], [100 + 100 * Math.cos(44 * Math.PI / 180), 100 * Math.sin(44 * Math.PI / 180)]]); assert.equal(fittingAt(r45, r45.get('N1')).standard, 45);
+const vert = net([[0, 0, 0], [100, 0, 0], [200, 0, 100]]); assert.ok(Math.abs(fittingAt(vert, vert.get('N1')).angleDeg - 45) < 1e-9); // 3D deflection includes the vertical change
+const red = net([[0, 0], [50, 0], [100, 0]], [300, 200]); const fr = fittingAt(red, red.get('N1')); assert.equal(fr.kind, 'Reducer'); assert.deepEqual(fr.diameters, [300, 200]);
+const tee = net([[0, 0], [50, 0], [100, 0]]); tee.add(createNode('NX', 'Junction', 50, 50)); tee.add(createPipe('PX', 'N1', 'NX')); assert.equal(fittingAt(tee, tee.get('N1')).kind, 'Tee');
+assert.equal(fittingAt(b90, createNode('V', 'Valve', 0, 0)), null);
+b90.get('P0').minBendRadius = 60; assert.ok(bendRadiusProblem(b90, b90.get('N1')) && Math.abs(bendRadiusProblem(b90, b90.get('N1')).T - 60) < 1e-9); b90.get('P0').minBendRadius = 50; assert.equal(bendRadiusProblem(b90, b90.get('N1')), null);
+b90.get('P0').minBendRadius = 60; assert.ok(collectWarnings(b90).some(w => /allowable radius/.test(w.msg)));
+const fq = quantities(b90).sections.find(s => /fittings/.test(s.title)); assert.ok(fq && fq.rows.some(r => r[0] === '90° bend' && r[2] === 1) && fq.rows.some(r => r[0].startsWith('Dead end') && r[2] === 2));
+const sc = new Project(bus); sc.add(createRoad('OBJ-0001', [{ x: 0, y: 0, z: 0 }, { x: 100, y: 0, z: 0 }, { x: 100, y: 100, z: 0 }])); assert.ok(collectWarnings(sc).some(w => /sharp corner of 90\.0°/.test(w.msg)));
+sc.get('OBJ-0001').points[1].r = 20; assert.ok(!collectWarnings(sc).some(w => /sharp corner/.test(w.msg))); sc.meta.minRadius = 30; assert.ok(collectWarnings(sc).some(w => /below your minimum of 30/.test(w.msg)));
+assert.equal(new Project(bus).meta.defaultRadius, 30); const dr = JSON.parse(serialize(sc)); dr.meta.defaultRadius = 0.5; assert.throws(() => parse(JSON.stringify(dr)), /defaultRadius/); assert.equal(parse(serialize(sc)).meta.minRadius, 30);
 console.log('All unit tests passed');

@@ -3,6 +3,7 @@ import { toDisplay, fromDisplay, SYS } from '../core/units.js';
 import { checkValue, N } from '../models/schema.js';
 import { roadStats } from '../models/road.js';
 import { pipeLength } from '../models/pipe.js';
+import { fittingAt } from '../models/fittings.js';
 import { terrainMesh, elevationAt } from '../models/terrain.js';
 import { contourSegments, MAX_LEVELS } from '../models/contours.js';
 import { drawProfile, drawSection } from './profile-view.js';
@@ -33,7 +34,12 @@ export function initPropertiesPanel(root, { project, selection, history, bus }) 
       const geoRow = (k, l, min, max) => { const f = N(k, l, min, max, { nullable: true }), i = mk('input', { type: 'number', step: 'any', value: g[k] ?? '' });
         i.addEventListener('change', () => { const v = i.value === '' ? null : parseFloat(i.value), err = checkValue(f, v); if (err) { msg.textContent = err; i.value = g[k] ?? ''; return; } history.record(); project.meta.geo = { ...g, [k]: v }; project.changed(); }); return row(l, i); };
       root.append(mk('h2', { textContent: 'Geographic origin (optional)' }), geoRow('originLon', 'Origin longitude (°)', -180, 180), geoRow('originLat', 'Origin latitude (°)', -90, 90), msg,
-        note('Where local (0, 0) sits on Earth, in WGS84 degrees. Used for the lon/lat readout and GeoJSON. Small-area approximation, not survey-grade.')); return;
+        note('Where local (0, 0) sits on Earth, in WGS84 degrees. Used for the lon/lat readout and GeoJSON. Small-area approximation, not survey-grade.'));
+      const lenRow = (k, l, min, max) => { const f = N(k, l, min, max, { nullable: true }), shown = () => project.meta[k] == null ? '' : +toDisplay('len', project.meta[k], SU()).toFixed(4), i = mk('input', { type: 'number', step: 'any', value: shown() });
+        i.addEventListener('change', () => { const raw = i.value === '' ? null : parseFloat(i.value), err = checkValue({ ...f, l: ulab(l), min: toDisplay('len', min, SU()), max: toDisplay('len', max, SU()) }, raw);
+          if (err) { msg.textContent = err; i.value = shown(); return; } history.record(); project.meta[k] = raw === null ? null : +fromDisplay('len', raw, SU()).toFixed(6); project.changed(); }); return row(ulab(l), i); };
+      root.append(mk('h2', { textContent: 'Design settings' }), lenRow('defaultRadius', 'Default curve radius (m)', 1, 1e5), lenRow('minRadius', 'Minimum curve radius to check (m)', 1, 1e5),
+        note('The default radius is applied to every new road or watercourse corner (placeholder: set it from your design standard). Curves below the minimum are flagged in Validate.')); return;
     }
     const commit = patch => { msg.textContent = ''; history.record(); project.update(o.id, patch); };
     root.append(row('ID', mk('input', { value: o.id, disabled: true })), row('Type', mk('input', { value: CAT[o.type], disabled: true })));
@@ -53,6 +59,7 @@ export function initPropertiesPanel(root, { project, selection, history, bus }) 
     root.append(msg);
     collectWarnings(project).filter(w => w.id === o.id).forEach(w => root.append(mk('p', { className: 'warn', textContent: '⚠ ' + w.msg.slice(o.id.length + 2) })));
     if (o.type === 'block') root.append(info('Volume (W×L×H)', dv((o.width * o.length * o.height), 3)), note('Generic test block. Not an engineering element.'));
+    if (o.type === 'node') { const ft = fittingAt(project, o); root.append(info('Fitting (derived)', ft ? ft.label + (ft.kind === 'Bend' ? ` · deflection ${ft.angleDeg.toFixed(1)}°` : '') : o.nodeType === 'Junction' ? 'none (straight joint or no pipes)' : o.nodeType + ' (not a pipe fitting)')); }
     if (o.type === 'node') root.append(info('Connected pipes', project.objects.filter(p => p.type === 'pipe' && (p.fromId === o.id || p.toId === o.id)).length), note('Drawn at invert level, else ground level, else 0. Leave levels blank if unknown.'));
     if (o.type === 'pipe') {
       const L = pipeLength(o, project);
@@ -104,11 +111,14 @@ export function initPropertiesPanel(root, { project, selection, history, bus }) 
         const del = mk('button', { textContent: '×', title: 'Delete point', disabled: o.points.length <= 2 });
         del.addEventListener('click', () => commit({ points: o.points.filter((_, j) => j !== i) })); r.append(del); root.append(r);
       });
+      const nI = o.points.length, rr = mk('button', { textContent: 'Round all corners' }), rm = mk('button', { textContent: 'Remove all curves' });
+      rr.addEventListener('click', () => { const R = project.meta.defaultRadius; if (!(R > 0)) { msg.textContent = 'Set a default curve radius in the project settings first (select nothing).'; return; } commit({ points: o.points.map((p, i) => i > 0 && i < nI - 1 ? { ...p, r: R } : p) }); });
+      rm.addEventListener('click', () => commit({ points: o.points.map(({ r, ...p }) => p) }));
       const add = mk('button', { textContent: 'Add point at end' });
       add.addEventListener('click', () => { const n = o.points.length, a = o.points[n - 2], b = o.points[n - 1], l = Math.hypot(b.x - a.x, b.y - a.y) || 1;
         commit({ points: [...o.points, { x: b.x + (b.x - a.x) / l * 10, y: b.y + (b.y - a.y) / l * 10, z: b.z + (b.z - a.z) / l * 10 }] }); });
       const cv = mk('canvas', { width: 240, height: 130, className: 'profile' });
-      root.append(add, note('Tip: with the Select tool, drag the gold handles to move a point in plan, and double-click the road to insert a point on that segment. Edit elevation (Z) in the table.'), mk('h2', { textContent: 'Longitudinal profile' }), cv, note(o.type === 'road' ? 'Preliminary geometry, not a final road design. Straight segments and simple circular arcs only; no spirals, superelevation or design standards.' : 'Conceptual watercourse alignment from user-entered bed levels. Not survey data; no hydraulic analysis.'));
+      root.append(add, rr, rm, note('Tip: with the Select tool, drag the gold handles to move a point in plan, and double-click the road to insert a point on that segment. Edit elevation (Z) in the table.'), mk('h2', { textContent: 'Longitudinal profile' }), cv, note(o.type === 'road' ? 'Preliminary geometry, not a final road design. Straight segments and simple circular arcs only; no spirals, superelevation or design standards.' : 'Conceptual watercourse alignment from user-entered bed levels. Not survey data; no hydraulic analysis.'));
       const dn = alignment(o.points).pts, terrains = project.objects.filter(t => t.type === 'terrain');
       const du = { k: toDisplay('len', 1, SU()), unit: SYS[SU()].len };
       drawProfile(cv, dn, o.type === 'road' ? groundProfile(dn, terrains) : null, du);

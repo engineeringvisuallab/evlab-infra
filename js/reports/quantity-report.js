@@ -1,6 +1,7 @@
 // Preliminary geometric quantities from entered coordinates and dimensions. Not a bill of quantities.
 import { roadStats } from '../models/road.js';
 import { toDisplay, SYS } from '../core/units.js';
+import { allFittings } from '../models/fittings.js';
 import { terrainMesh } from '../models/terrain.js';
 import { pipeLength } from '../models/pipe.js';
 import { toCsv } from '../io/csv-io.js';
@@ -37,6 +38,10 @@ export function quantities(project) {
     sections.push({ title: 'Pipes', headers: ['ID', 'Name', 'From', 'To', `Diameter (${S.dia})`, 'Material', `3D length (${S.len})`, `Plan length (${S.len})`, 'Asset ID'], rows });
     sections.push({ title: 'Pipe length by diameter and material', headers: [`Diameter (${S.dia})`, 'Material', 'Count', `Total 3D length (${S.len})`], rows: [...by.values()].sort((a, b) => a.d - b.d).map(e => [cd(e.d), e.m, e.n, cl(e.len, 3)]) });
   }
+  const fit = allFittings(project);
+  if (fit.length) { const g = new Map(); fit.forEach(x => { const k = x.label + '|' + x.diameters.join('x'), e = g.get(k) || { label: x.label, dia: x.diameters.map(cd).join(' × '), n: 0 }; e.n++; g.set(k, e); });
+    sections.push({ title: 'Pipe fittings (derived from the network)', headers: ['Fitting', `Diameter (${S.dia})`, 'Count'], rows: [...g.values()].sort((a, b) => a.label.localeCompare(b.label)).map(e => [e.label, e.dia, e.n]) });
+    notes.push('Fittings are derived from the pipe geometry at Junction nodes (bends, tees, crosses, dead ends, reducers). Joints, couplings and valves/pumps listed under nodes are not included.'); }
   const nodes = O('node');
   if (nodes.length) { const c = {}; nodes.forEach(n => c[n.nodeType] = (c[n.nodeType] || 0) + 1); sections.push({ title: 'Network nodes', headers: ['Type', 'Count'], rows: Object.entries(c) }); }
   const bridges = O('bridge');

@@ -35,6 +35,7 @@ with sync_playwright() as p:
     # M3: road and pipe
     page.click('[data-tool=road]'); [page.mouse.click(cx + dx, cy + dy) for dx, dy in ((-200, 120), (0, 60), (200, 120))]; page.keyboard.press('Enter')
     ok(ev('evlab.project.objects.filter(o=>o.type==="road").length') == 1, 'Draw road creates a road')
+    ok(ev('evlab.project.objects.find(o=>o.type==="road").points[1].r') == 30 and ev('evlab.project.objects.find(o=>o.type==="road").points[0].r') is None, 'a newly drawn road gets the default curve radius at its corners')
     # drag a road control point with its handle
     road = ev('evlab.project.objects.find(o=>o.type==="road")'); pt = road['points'][1]; sc = ev(f'evlab.sm.toScreen({pt["x"]},{pt["y"]},{pt["z"]}+0.3)')
     page.mouse.move(sc['x'], sc['y']); page.mouse.down(); page.mouse.move(sc['x'] + 50, sc['y'] + 40, steps=6); page.mouse.up()
@@ -52,6 +53,7 @@ with sync_playwright() as p:
     ok(page.locator('#properties canvas').count() == 2, 'profile and cross-section canvases are shown')
     page.click('[data-tool=pipe]'); [page.mouse.click(cx + dx, cy + dy) for dx, dy in ((-150, 180), (0, 150), (150, 190))]; page.keyboard.press('Enter')
     ok(ev('evlab.project.objects.filter(o=>o.type==="pipe").length') == 2 and ev('evlab.project.objects.filter(o=>o.type==="node").length') == 3, 'Draw pipe creates 3 nodes and 2 pipes')
+    ok(ev('(async()=>{const m=await import("./js/models/fittings.js");return m.allFittings(evlab.project).filter(f=>f.kind==="Dead end").length})()') == 2, 'pipe fittings are derived automatically (two dead ends on an open run)')
     # M4: watercourse, bridge, culvert, crossings panel
     page.click('[data-tool=watercourse]'); [page.mouse.click(cx + dx, cy + dy) for dx, dy in ((-60, 20), (-40, 220))]; page.keyboard.press('Enter')
     page.click('[data-action=addBridge]'); page.click('[data-action=addCulvert]')
